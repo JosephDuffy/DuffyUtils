@@ -31,7 +31,7 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
     @Option(help: "The prefix to use for the new branch. Reads from the git config `duffyutils.worktree-prefix` if not specified, and defaults to the directory name of the main repo with a `-` appended.")
     public var repoPrefix: String?
 
-    @Option(help: "The source branch to create the new branch from. If not specified falls back to the 'duffyutils.worktree-starting-point' git config value, then 'init.defaultBranch'.")
+    @Option(help: "The source branch to create the new branch from. If not specified falls back to the 'duffyutils.worktree-starting-point' git config value, otherwise the current branch is used.")
     public var sourceBranch: String?
 
     @Flag(
@@ -48,9 +48,6 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
 
     @GitConfigValue(name: "duffyutils.worktree-starting-point")
     private var worktreeStartingPoint: String?
-
-    @GitConfigValue(name: "init.defaultBranch")
-    private var defaultBranchName: String?
 
     @GitConfigValue(name: "duffyutils.open-new-worktrees-with")
     private var openInGitConfig: String?
@@ -116,8 +113,6 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
             startingPoint = sourceBranch
         } else if let worktreeStartingPoint = try await worktreeStartingPoint {
             startingPoint = worktreeStartingPoint
-        } else if let defaultBranchName = try await defaultBranchName {
-            startingPoint = defaultBranchName
         } else {
             startingPoint = nil
         }
