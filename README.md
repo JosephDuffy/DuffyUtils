@@ -9,7 +9,8 @@ Most of these used to be simple bash/sh scripts. I migrated these to Swift becau
 - I include the Jira ticket ID for the work in the branches I work on.
 - Branch names generally take the form `kind/ABC-123_change-description`. `kind` is `feature`, `bugfix`, etc.
 - Everything is configured via the git config.
-- I have a checkout of the production code at `~/Developer/project-name` then active worktrees under `~/Developer/project-name/ABC-123_change-description`.
+- Things should default to being is relative to the main repo, so you can run these from any worktree and it will produce output in the same place.
+- I have a checkout of the production code at `~/Developer/project-name`, active worktrees under `~/Developer/project-name-worktree/ABC-123_change-description`, and PRs I'm reviewing under `~/Developer/project-name-prs/ABC-123_change-description`.
 - Script include (somewhat) useful `--help` output.
 
 ## Scripts
