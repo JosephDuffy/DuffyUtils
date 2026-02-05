@@ -13,9 +13,9 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
             
             This script aims to be usable from any worktree within a git repo, namely by using git config values to store repo-wide values. Note the order that configuration values are read from: https://git-scm.com/docs/git-config#SCOPES
             
-            The most important value to configure is 'jd.worktree-starting-point'. This value determines the starting point for new worktrees. For my use cases I set this to `origin/develop`:
+            The most important value to configure is 'duffyutils.worktree-starting-point'. This value determines the starting point for new worktrees. For my use cases I set this to `origin/develop`:
             
-            $ git config set --local jd.worktree-starting-point origin/develop
+            $ git config set --local duffyutils.worktree-starting-point origin/develop
             
             By default it is assumed that branches include a prefix, such as 'feature/' or 'bugfix/', which are stripped from the name of the worktree. The goal here is to reduce the otherwise lengthy folder names. This stripping can be disabled 
             """,
@@ -25,13 +25,13 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
     @Argument(help: "The name of the branch to create and checkout in the new worktree.")
     public var branchName: String
 
-    @Option(help: "Specify the app to open the new worktree in. Omit or pass an empty string to disable opening. Falls back to 'jd.open-new-worktrees-with' if not provided.")
+    @Option(help: "Specify the app to open the new worktree in. Omit or pass an empty string to disable opening. Falls back to 'duffyutils.open-new-worktrees-with' if not provided.")
     public var openIn: String = ""
 
-    @Option(help: "The prefix to use for the new branch. Reads from the git config `jd.worktree-prefix` if not specified, and defaults to the directory name of the main repo with a `-` appended.")
+    @Option(help: "The prefix to use for the new branch. Reads from the git config `duffyutils.worktree-prefix` if not specified, and defaults to the directory name of the main repo with a `-` appended.")
     public var repoPrefix: String?
 
-    @Option(help: "The source branch to create the new branch from. If not specified falls back to the 'jd.worktree-starting-point' git config value, then 'init.defaultBranch'.")
+    @Option(help: "The source branch to create the new branch from. If not specified falls back to the 'duffyutils.worktree-starting-point' git config value, then 'init.defaultBranch'.")
     public var sourceBranch: String?
 
     @Flag(
@@ -43,16 +43,16 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
     @Flag
     public var verbose = false
 
-    @GitConfigValue(name: "jd.worktree-prefix")
+    @GitConfigValue(name: "duffyutils.worktree-prefix")
     private var worktreePrefix: String?
 
-    @GitConfigValue(name: "jd.worktree-starting-point")
+    @GitConfigValue(name: "duffyutils.worktree-starting-point")
     private var worktreeStartingPoint: String?
 
     @GitConfigValue(name: "init.defaultBranch")
     private var defaultBranchName: String?
 
-    @GitConfigValue(name: "jd.open-new-worktrees-with")
+    @GitConfigValue(name: "duffyutils.open-new-worktrees-with")
     private var openInGitConfig: String?
 
     public func run() async throws {
