@@ -4,6 +4,14 @@ This repo contains a set of optinionated utilities that I used in my day-to-day 
 
 Most of these used to be simple bash/sh scripts. I migrated these to Swift because I like [Swift Argument Parser](https://github.com/apple/swift-argument-parser), having build-in types and functions for things like URLs, and I like to write my tools in the language I use everyday.
 
+## Core Concepts
+
+- I include the Jira ticket ID for the work in the branches I work on.
+- Branch names generally take the form `kind/ABC-123_change-description`. `kind` is `feature`, `bugfix`, etc.
+- Everything is configured via the git config.
+- I have a checkout of the production code at `~/Developer/project-name` then active worktrees under `~/Developer/project-name/ABC-123_change-description`.
+- Script include (somewhat) useful `--help` output.
+
 ## Scripts
 
 This repo provides various scripts. The aim is to have some cohension between them, such as using the same prefix for configurations.
