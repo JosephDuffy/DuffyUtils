@@ -36,6 +36,14 @@ let package = Package(
                 .product(name: "Subprocess", package: "swift-subprocess"),
             ]
         ),
+        .executableTarget(
+            name: "git-checkout-pr-in-worktree",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "DuffyUtilsInternals",
+                .product(name: "Subprocess", package: "swift-subprocess"),
+            ]
+        ),
         .target(
             name: "DuffyUtilsInternals",
             dependencies: [

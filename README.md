@@ -38,6 +38,16 @@ git new-branch-and-worktree feature/ABC-123_add-new-feature
 
 And it creates a new worktree at `project-name-worktrees/ABC-123_add-new-feature`, then opens it in iTerm.
 
+## `git-checkout-pr-in-worktree`
+
+This command will checkout a PR from GitHub in a new worktree. It can be configured to use its own directory:
+
+```bash
+git config set "duffyutils.pr-worktree-prefix" "project-name-prs/"
+```
+
+If not set it will fallback to `duffyutils.worktree-prefix` or the main repo's root.
+
 ## `open-in-jira`
 
 This uses the Jira ticket ID from the branch name to open the branch in Jira. It can be setup as:
