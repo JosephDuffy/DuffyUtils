@@ -102,10 +102,36 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
 
         let worktreeName = "\(prefix)\(worktreeSuffix)"
 
-        let repoPath = URL(
-            filePath: "../\(worktreeName)",
-            relativeTo: URL(filePath: FileManager.default.currentDirectoryPath)
+        // Get the main worktree path to create new worktrees as siblings
+        let mainWorktreeResult = try await Subprocess.run(
+            .name("git"),
+            arguments: [
+                "rev-parse",
+                "--path-format=absolute",
+                "--git-common-dir",
+            ],
+            output: .string(limit: 4096),
+            error: .string(limit: 4096)
         )
+
+        guard mainWorktreeResult.terminationStatus.isSuccess, let gitCommonDir = mainWorktreeResult.standardOutput else {
+            if let output = mainWorktreeResult.standardOutput {
+                print(output)
+            }
+            if let standardError = mainWorktreeResult.standardError {
+                print(standardError)
+            }
+            printError("Failed to determine git common directory")
+            throw ExitCode(1)
+        }
+
+        let trimmedGitCommonDir = gitCommonDir.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // The git common dir ends with /.git, so the parent is the main worktree
+        let mainWorktreeURL = URL(filePath: trimmedGitCommonDir).deletingLastPathComponent()
+
+        // Create the new worktree as a sibling to the main worktree
+        let repoPath = mainWorktreeURL.deletingLastPathComponent().appending(path: worktreeName)
 
         let startingPoint: String?
 
