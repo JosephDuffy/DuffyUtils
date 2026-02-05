@@ -70,6 +70,18 @@ I alias this one to `oij`:
 alias --save oij="open-in-jira"
 ```
 
+## `git-remove-current-worktree-and-branch`
+
+This is the last step in the process of working on a change or reviewing a PR.
+
+Run
+
+```bash
+git remove-current-worktree-and-branch
+```
+
+and the current workrtree and branch will be removed. There are some checks for things like uncommitted changes, but remember this is destructive :)
+
 ## Installation
 
 If you don't have Swift installed, first [install Swift](https://www.swift.org/install/). <sup>[Why Swift?](#why-swift)</sup>

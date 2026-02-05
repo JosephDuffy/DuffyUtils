@@ -44,6 +44,14 @@ let package = Package(
                 .product(name: "Subprocess", package: "swift-subprocess"),
             ]
         ),
+        .executableTarget(
+            name: "git-remove-current-worktree-and-branch",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "DuffyUtilsInternals",
+                .product(name: "Subprocess", package: "swift-subprocess"),
+            ]
+        ),
         .target(
             name: "DuffyUtilsInternals",
             dependencies: [
