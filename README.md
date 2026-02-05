@@ -29,6 +29,28 @@ git new-branch-and-worktree feature/ABC-123_add-new-feature
 
 And it creates a new worktree at `project-name-worktrees/ABC-123_add-new-feature`, then opens it in iTerm.
 
+## `open-in-jira`
+
+This uses the Jira ticket ID from the branch name to open the branch in Jira. It can be setup as:
+
+```bash
+git config set "duffyutils.jira-domain" "company.atlassian.net"
+```
+
+Then running on the branch `feature/ABC-123_add-new-feature`:
+
+```bash
+open-in-jira
+```
+
+Will open `https://company.atlassian.net/browse/ABC-123`.
+
+I alias this one to `oij`:
+
+```fish
+alias --save oij="open-in-jira"
+```
+
 ## Installation
 
 If you don't have Swift installed, first [install Swift](https://www.swift.org/install/). <sup>[Why Swift?](#why-swift)</sup>
