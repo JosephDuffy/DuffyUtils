@@ -100,7 +100,7 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
             worktreeSuffix = branchName
         }
 
-        let worktreeName = "\(prefix)-\(worktreeSuffix)"
+        let worktreeName = "\(prefix)\(worktreeSuffix)"
 
         let repoPath = URL(
             filePath: "../\(worktreeName)",
