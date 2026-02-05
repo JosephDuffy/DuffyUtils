@@ -26,7 +26,7 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
     public var branchName: String
 
     @Option(help: "Specify the app to open the new worktree in. Omit or pass an empty string to disable opening. Falls back to 'duffyutils.open-new-worktrees-with' if not provided.")
-    public var openIn: String = ""
+    public var openIn: String?
 
     @Option(help: "The prefix to use for the new branch. Reads from the git config `duffyutils.worktree-prefix` if not specified, and defaults to the directory name of the main repo with a `-` appended.")
     public var repoPrefix: String?
@@ -153,7 +153,13 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
             throw ExitCode(1)
         }
 
-        if !openIn.isEmpty {
+        let openIn: String?
+        if let openInOption = self.openIn {
+            openIn = openInOption
+        } else {
+            openIn = try await openInGitConfig
+        }
+        if let openIn, !openIn.isEmpty {
             _ = try await Subprocess.run(
                 .name("open"),
                 arguments: [
