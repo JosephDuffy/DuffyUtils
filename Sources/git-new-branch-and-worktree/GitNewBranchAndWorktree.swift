@@ -15,7 +15,7 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
             
             The most important value to configure is 'duffyutils.worktree-starting-point'. This value determines the starting point for new worktrees. For my use cases I set this to `origin/develop`:
             
-            $ git config set --local duffyutils.worktree-starting-point origin/develop
+            $ git config set duffyutils.worktree-starting-point origin/develop
             
             By default it is assumed that branches include a prefix, such as 'feature/' or 'bugfix/', which are stripped from the name of the worktree. The goal here is to reduce the otherwise lengthy folder names. This stripping can be disabled 
             """,
