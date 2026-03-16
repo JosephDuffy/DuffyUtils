@@ -200,13 +200,16 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
         if worktreeExists {
             printError("Worktree already exists at \"\(repoPath.path())\"")
         } else {
-            // Fetch the PR branch
+            let localBranchName = "pr/\(prNumber)/\(worktreeSuffix)"
+            let remotePRRef = "refs/remotes/origin/pr/\(prNumber)"
+
+            // Fetch the PR head without changing the current worktree state.
             printError("Fetching PR #\(prNumber)...")
             let fetchResult = try await Subprocess.run(
-                .name("gh"),
+                .name("git"),
                 arguments: [
-                    "pr", "checkout", String(prNumber),
-                    "--detach",
+                    "fetch", "origin",
+                    "+refs/pull/\(prNumber)/head:\(remotePRRef)",
                 ],
                 output: .standardOutput,
                 error: .standardError
@@ -217,45 +220,43 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
                 throw ExitCode(1)
             }
 
-            // Get the commit SHA that was checked out
-            let revParseResult = try await Subprocess.run(
+            // Determine whether the local PR branch already exists.
+            let branchExistsResult = try await Subprocess.run(
                 .name("git"),
                 arguments: [
-                    "rev-parse", "HEAD",
+                    "show-ref",
+                    "--verify",
+                    "--quiet",
+                    "refs/heads/\(localBranchName)",
                 ],
-                output: .string(limit: 4096),
+                output: .standardOutput,
                 error: .string(limit: 4096)
             )
 
-            guard revParseResult.terminationStatus.isSuccess, let commitSHA = revParseResult.standardOutput?.trimmingCharacters(in: .whitespacesAndNewlines) else {
-                printError("Failed to get commit SHA")
-                throw ExitCode(1)
-            }
-
-            // Return to the previous branch
-            let checkoutBackResult = try await Subprocess.run(
-                .name("git"),
-                arguments: [
-                    "checkout", "-",
-                ],
-                output: .standardOutput,
-                error: .standardError
-            )
-
-            if !checkoutBackResult.terminationStatus.isSuccess {
-                printError("Warning: Failed to return to previous branch")
-            }
+            let localBranchExists = branchExistsResult.terminationStatus.isSuccess
 
             // Create the worktree
-            printError("Creating new worktree at \"\(repoPath.path())\" for PR #\(prNumber) (\(branchName))")
+            printError("Creating new worktree at \"\(repoPath.path())\" for PR #\(prNumber) (\(branchName)) on branch \"\(localBranchName)\"")
+
+            let createWorktreeArguments: [String]
+            if localBranchExists {
+                createWorktreeArguments = [
+                    "worktree", "add",
+                    repoPath.path(),
+                    localBranchName,
+                ]
+            } else {
+                createWorktreeArguments = [
+                    "worktree", "add",
+                    "-b", localBranchName,
+                    repoPath.path(),
+                    remotePRRef,
+                ]
+            }
 
             let createWorktreeResult = try await Subprocess.run(
                 .name("git"),
-                arguments: [
-                    "worktree", "add",
-                    repoPath.path(),
-                    commitSHA,
-                ],
+                arguments: Arguments(createWorktreeArguments),
                 output: .standardOutput,
                 error: .standardError
             )
