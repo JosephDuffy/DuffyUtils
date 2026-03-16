@@ -83,7 +83,7 @@ struct OpenInJiraAsyncParsableCommand: AsyncParsableCommand {
             domain = jiraDomainConfig
         } else {
             printError("No Jira domain specified. Please provide --jira-domain or set 'duffyutils.jira-domain' in git config.")
-            printError("Example: git config set --local duffyutils.jira-domain company.atlassian.net")
+            printError("Example: git config set duffyutils.jira-domain company.atlassian.net")
             throw ExitCode(1)
         }
 
