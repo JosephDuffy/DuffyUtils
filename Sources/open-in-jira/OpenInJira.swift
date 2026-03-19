@@ -19,11 +19,16 @@ struct OpenInJiraAsyncParsableCommand: AsyncParsableCommand {
             - bugfix/ABC-123-some-description
             - ABC-123
 
+            The Jira issue ID can be provided via --issue-id to bypass branch parsing.
+
             The Jira domain is configured via the 'duffyutils.jira-domain' git config value or the --jira-domain option.
             Example: git config set --worktree duffyutils.jira-domain company.atlassian.net
             """
         )
     }
+
+    @Option(help: "The Jira issue ID to open (e.g., 'ABC-123'). If not provided, extracted from the current branch name.")
+    public var issueId: String?
 
     @Option(help: "The Jira domain to use (e.g., 'company.atlassian.net'). Falls back to 'duffyutils.jira-domain' git config value if not provided.")
     public var jiraDomain: String?
@@ -38,44 +43,53 @@ struct OpenInJiraAsyncParsableCommand: AsyncParsableCommand {
     private var jiraDomainConfig: String?
 
     public func run() async throws {
-        // Get the current branch name
-        let branchResult = try await Subprocess.run(
-            .name("git"),
-            arguments: [
-                "branch",
-                "--show-current",
-            ],
-            output: .string(limit: 4096),
-            error: .standardError,
-        )
-
-        guard branchResult.terminationStatus.isSuccess, let branchName = branchResult.standardOutput else {
-            if let output = branchResult.standardOutput {
-                print(output)
+        let ticketId: String
+        if let issueId {
+            ticketId = issueId
+            if verbose {
+                printError("Using provided Jira ticket ID: \(ticketId)")
             }
-            printError("Failed to get current branch name")
-            throw ExitCode(1)
-        }
+        } else {
+            // Get the current branch name
+            let branchResult = try await Subprocess.run(
+                .name("git"),
+                arguments: [
+                    "branch",
+                    "--show-current",
+                ],
+                output: .string(limit: 4096),
+                error: .standardError,
+            )
 
-        let trimmedBranchName = branchName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard branchResult.terminationStatus.isSuccess, let branchName = branchResult.standardOutput else {
+                if let output = branchResult.standardOutput {
+                    print(output)
+                }
+                printError("Failed to get current branch name")
+                throw ExitCode(1)
+            }
 
-        if verbose {
-            printError("Current branch: \(trimmedBranchName)")
-        }
+            let trimmedBranchName = branchName.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Parse the Jira ticket ID from the branch name
-        guard let ticketId = extractJiraTicketId(from: trimmedBranchName) else {
-            printError("Could not find a Jira ticket ID in branch name: \(trimmedBranchName)")
-            printError("Expected format: <prefix>/<PROJECT>-<number><separator><description>")
-            printError("Examples: feature/ABC-123_feature-name, bugfix/PROJ-456-fix-bug")
-            throw ExitCode(1)
+            if verbose {
+                printError("Current branch: \(trimmedBranchName)")
+            }
+
+            // Parse the Jira ticket ID from the branch name
+            guard let parsedTicketId = extractJiraTicketId(from: trimmedBranchName) else {
+                printError("Could not find a Jira ticket ID in branch name: \(trimmedBranchName)")
+                printError("Expected format: <prefix>/<PROJECT>-<number><separator><description>")
+                printError("Examples: feature/ABC-123_feature-name, bugfix/PROJ-456-fix-bug")
+                throw ExitCode(1)
+            }
+
+            ticketId = parsedTicketId
         }
 
         if verbose {
             printError("Found Jira ticket ID: \(ticketId)")
         }
 
-        // Get the Jira domain
         let domain: String
         if let jiraDomain {
             domain = jiraDomain

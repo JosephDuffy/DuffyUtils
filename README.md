@@ -64,6 +64,18 @@ open-in-jira
 
 Will open `https://company.atlassian.net/browse/ABC-123`.
 
+You can also pass an issue ID directly:
+
+```bash
+open-in-jira --issue-id ABC-123
+```
+
+And override the Jira domain:
+
+```bash
+open-in-jira --issue-id ABC-123 --jira-domain "company.atlassian.net"
+```
+
 I alias this one to `oij`:
 
 ```fish
