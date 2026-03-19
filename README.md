@@ -106,6 +106,23 @@ Individual scripts can be installed via `brew`:
 brew install josephduffy/duffyutils/git-new-branch-and-worktree
 ```
 
+If you tap it you can install them in a slightly less verbose way:
+
+```bash
+brew tap josephduffy/duffyutils
+brew install git-new-branch-and-worktree
+brew install git-checkout-pr-in-worktree
+brew install open-in-jira
+brew install git-remove-current-worktree-and-branch
+```
+
+or all at once:
+
+```bash
+brew tap josephduffy/duffyutils
+brew install git-new-branch-and-worktree git-checkout-pr-in-worktree open-in-jira git-remove-current-worktree-and-branch
+```
+
 ### Manual
 
 Clone this repository and build using Swift Package Manager:
