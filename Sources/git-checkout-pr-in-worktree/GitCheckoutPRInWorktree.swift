@@ -58,7 +58,7 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
             .name("gh"),
             arguments: [
                 "pr", "view", String(prNumber),
-                "--json", "headRefName,headRepository,headRepositoryOwner",
+                "--json", "headRefName,headRepository",
             ],
             output: .string(limit: 4096),
             error: .string(limit: 4096)
@@ -80,14 +80,14 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
         }
 
         // Parse the JSON to get the branch name
-        guard
-            let jsonData = prInfoJSON.data(using: .utf8),
-            let prInfo = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-            let branchName = prInfo["headRefName"] as? String
+        guard let jsonData = prInfoJSON.data(using: .utf8),
+              let prInfo = try? JSONDecoder().decode(PullRequestInfo.self, from: jsonData)
         else {
             printError("Failed to parse PR branch name from: \(prInfoJSON)")
             throw ExitCode(1)
         }
+
+        let branchName = prInfo.headRefName
 
         if verbose {
             printError("PR branch name: \(branchName)")
@@ -200,16 +200,16 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
         if worktreeExists {
             printError("Worktree already exists at \"\(repoPath.path())\"")
         } else {
-            let localBranchName = "pr/\(prNumber)/\(worktreeSuffix)"
-            let remotePRRef = "refs/remotes/origin/pr/\(prNumber)"
+            let localBranchName = branchName
+            let remoteName = try await remoteName(for: prInfo)
+            let remoteBranchRef = "refs/remotes/\(remoteName)/\(branchName)"
 
-            // Fetch the PR head without changing the current worktree state.
-            printError("Fetching PR #\(prNumber)...")
+            printError("Fetching PR #\(prNumber) from \(remoteName)/\(branchName)...")
             let fetchResult = try await Subprocess.run(
                 .name("git"),
                 arguments: [
-                    "fetch", "origin",
-                    "+refs/pull/\(prNumber)/head:\(remotePRRef)",
+                    "fetch", remoteName,
+                    "+refs/heads/\(branchName):\(remoteBranchRef)",
                 ],
                 output: .standardOutput,
                 error: .standardError
@@ -236,7 +236,7 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
             let localBranchExists = branchExistsResult.terminationStatus.isSuccess
 
             // Create the worktree
-            printError("Creating new worktree at \"\(repoPath.path())\" for PR #\(prNumber) (\(branchName)) on branch \"\(localBranchName)\"")
+            printError("Creating new worktree at \"\(repoPath.path())\" for PR #\(prNumber) on branch \"\(localBranchName)\" tracking \"\(remoteName)/\(branchName)\"")
 
             let createWorktreeArguments: [String]
             if localBranchExists {
@@ -248,9 +248,10 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
             } else {
                 createWorktreeArguments = [
                     "worktree", "add",
+                    "--track",
                     "-b", localBranchName,
                     repoPath.path(),
-                    remotePRRef,
+                    remoteBranchRef,
                 ]
             }
 
@@ -264,6 +265,25 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
             guard createWorktreeResult.terminationStatus.isSuccess else {
                 printError("Failed to create worktree")
                 throw ExitCode(1)
+            }
+
+            if localBranchExists {
+                let setUpstreamResult = try await Subprocess.run(
+                    .name("git"),
+                    arguments: [
+                        "-C", repoPath.path(),
+                        "branch",
+                        "--set-upstream-to=\(remoteName)/\(branchName)",
+                        localBranchName,
+                    ],
+                    output: .standardOutput,
+                    error: .standardError
+                )
+
+                guard setUpstreamResult.terminationStatus.isSuccess else {
+                    printError("Failed to set upstream branch")
+                    throw ExitCode(1)
+                }
             }
         }
 
@@ -293,4 +313,117 @@ struct GitCheckoutPRInWorktree: AsyncParsableCommand {
 
         print("Worktree ready at \(repoPath.path())")
     }
+
+    private func remoteName(for prInfo: PullRequestInfo) async throws -> String {
+        guard let headRepository = prInfo.headRepository else {
+            printError("PR head repository information was not available")
+            throw ExitCode(1)
+        }
+
+        let remoteURL = headRepository.url ?? "https://github.com/\(headRepository.nameWithOwner).git"
+
+        let originRemoteResult = try await Subprocess.run(
+            .name("git"),
+            arguments: [
+                "remote",
+                "get-url",
+                "origin",
+            ],
+            output: .string(limit: 4096),
+            error: .string(limit: 4096)
+        )
+
+        if originRemoteResult.terminationStatus.isSuccess,
+           let originURL = originRemoteResult.standardOutput?.trimmingCharacters(in: .whitespacesAndNewlines),
+           normalizedRepositoryURL(originURL) == normalizedRepositoryURL(remoteURL) {
+            return "origin"
+        }
+
+        let remoteName = sanitizedRemoteName(for: headRepository.nameWithOwner)
+
+        let existingRemoteResult = try await Subprocess.run(
+            .name("git"),
+            arguments: [
+                "remote",
+                "get-url",
+                remoteName,
+            ],
+            output: .string(limit: 4096),
+            error: .string(limit: 4096)
+        )
+
+        if existingRemoteResult.terminationStatus.isSuccess {
+            guard let existingURL = existingRemoteResult.standardOutput?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  normalizedRepositoryURL(existingURL) == normalizedRepositoryURL(remoteURL)
+            else {
+                printError("Remote '\(remoteName)' already exists but does not point to \(remoteURL)")
+                throw ExitCode(1)
+            }
+
+            return remoteName
+        }
+
+        printError("Adding remote '\(remoteName)' for \(headRepository.nameWithOwner)...")
+        let addRemoteResult = try await Subprocess.run(
+            .name("git"),
+            arguments: [
+                "remote",
+                "add",
+                remoteName,
+                remoteURL,
+            ],
+            output: .standardOutput,
+            error: .standardError
+        )
+
+        guard addRemoteResult.terminationStatus.isSuccess else {
+            printError("Failed to add remote '\(remoteName)'")
+            throw ExitCode(1)
+        }
+
+        return remoteName
+    }
+
+    private func sanitizedRemoteName(for nameWithOwner: String) -> String {
+        nameWithOwner
+            .lowercased()
+            .map { character in
+                if character.isLetter || character.isNumber || character == "-" || character == "_" || character == "." {
+                    return character
+                } else {
+                    return "-"
+                }
+            }
+            .reduce(into: "") { result, character in
+                if character != "-" || result.last != "-" {
+                    result.append(character)
+                }
+            }
+    }
+
+    private func normalizedRepositoryURL(_ url: String) -> String {
+        var normalizedURL = url
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+
+        if normalizedURL.hasPrefix("git@github.com:") {
+            normalizedURL.replaceSubrange(normalizedURL.startIndex..<normalizedURL.index(normalizedURL.startIndex, offsetBy: "git@github.com:".count), with: "https://github.com/")
+        }
+
+        if normalizedURL.hasSuffix(".git") {
+            normalizedURL.removeLast(".git".count)
+        }
+
+        return normalizedURL
+    }
+}
+
+private struct PullRequestInfo: Decodable {
+    let headRefName: String
+    let headRepository: Repository?
+}
+
+private struct Repository: Decodable {
+    let nameWithOwner: String
+    let url: String?
 }
