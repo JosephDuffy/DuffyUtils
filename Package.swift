@@ -29,6 +29,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
+            name: "jira-tools",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "DuffyUtilsInternals",
+            ]
+        ),
+        .executableTarget(
             name: "open-in-jira",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
