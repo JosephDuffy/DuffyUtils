@@ -131,7 +131,10 @@ struct GitNewBranchAndWorktreeAsyncParsableCommand: AsyncParsableCommand {
         let mainWorktreeURL = URL(filePath: trimmedGitCommonDir).deletingLastPathComponent()
 
         // Create the new worktree as a sibling to the main worktree
-        let repoPath = mainWorktreeURL.deletingLastPathComponent().appending(path: worktreeName)
+        let repoPath = mainWorktreeURL.deletingLastPathComponent().appending(
+            path: worktreeName,
+            directoryHint: .isDirectory
+        )
 
         let startingPoint: String?
 
