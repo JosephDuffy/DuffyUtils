@@ -9,28 +9,70 @@ struct RendererConfiguration {
     let noColor: Bool
 }
 
+struct PaginationState {
+    var pageIndex: Int
+    var pageSize: Int
+
+    func clamped(totalItems: Int) -> PaginationState {
+        PaginationState(
+            pageIndex: clampedPageIndex(totalItems: totalItems),
+            pageSize: pageSize,
+        )
+    }
+
+    func clampedPageIndex(totalItems: Int) -> Int {
+        min(max(0, pageIndex), max(0, pageCount(totalItems: totalItems) - 1))
+    }
+
+    func pageCount(totalItems: Int) -> Int {
+        guard totalItems > 0 else {
+            return 1
+        }
+
+        return Int(ceil(Double(totalItems) / Double(pageSize)))
+    }
+
+    func range(totalItems: Int) -> Range<Int> {
+        guard totalItems > 0 else {
+            return 0..<0
+        }
+
+        let clampedPageIndex = clampedPageIndex(totalItems: totalItems)
+        let startIndex = clampedPageIndex * pageSize
+        let endIndex = min(startIndex + pageSize, totalItems)
+        return startIndex..<endIndex
+    }
+}
+
 struct TerminalRenderer {
     let configuration: RendererConfiguration
 
     var canReplaceOutput: Bool {
-        configuration.watch || isatty(STDOUT_FILENO) == 1
+        isatty(STDOUT_FILENO) == 1
     }
 
     func render(
         _ snapshot: RefreshSnapshot,
+        pagination: PaginationState,
         replacingPreviousOutput: Bool = false,
     ) {
+        let pagination = pagination.clamped(totalItems: snapshot.reports.count)
         let output = renderHeader(snapshot)
+            + renderPagination(
+                pagination,
+                totalItems: snapshot.reports.count,
+            )
             + renderErrors(snapshot.errors)
             + renderReports(
                 snapshot.reports,
                 extraFields: snapshot.extraFields,
+                pagination: pagination,
                 status: snapshot.status,
                 updatedAt: snapshot.updatedAt,
             )
             + "\u{001B}[0m"
 
-        if configuration.watch || replacingPreviousOutput {
+        if canReplaceOutput && (configuration.watch || replacingPreviousOutput) {
             writeToStandardOutput("\u{001B}[?25l\u{001B}[H\u{001B}[J" + output + "\u{001B}[?25h")
         } else {
             writeToStandardOutput(output)
@@ -57,10 +99,28 @@ struct TerminalRenderer {
         ]
 
         if configuration.watch {
-            lines.append("Watch: refreshing every \(formatDuration(configuration.intervalSeconds)); press R to refresh now.")
+            lines.append("Watch: refreshing every \(formatDuration(configuration.intervalSeconds)); press R to refresh now. Press N/P or arrow keys to page.")
         }
 
         return lines.joined(separator: "\n") + "\n\n"
+    }
+
+    private func renderPagination(
+        _ pagination: PaginationState,
+        totalItems: Int,
+    ) -> String {
+        let pageCount = pagination.pageCount(totalItems: totalItems)
+        let pageNumber = pagination.clampedPageIndex(totalItems: totalItems) + 1
+        let range = pagination.range(totalItems: totalItems)
+        let visibleRange: String
+
+        if range.isEmpty {
+            visibleRange = "showing 0 of \(totalItems)"
+        } else {
+            visibleRange = "showing \(range.lowerBound + 1)-\(range.upperBound) of \(totalItems)"
+        }
+
+        return "Page: \(pageNumber)/\(pageCount), \(visibleRange)\n\n"
     }
 
     private func renderErrors(_ errors: [String]) -> String {
@@ -75,10 +135,12 @@ struct TerminalRenderer {
     private func renderReports(
         _ reports: [TicketReport],
         extraFields: [JiraField],
+        pagination: PaginationState,
         status: RefreshStatus,
         updatedAt: Date,
     ) -> String {
-        let rows = reports.map { report -> [String] in
+        let paginatedReports = Array(reports[pagination.range(totalItems: reports.count)])
+        let rows = paginatedReports.map { report -> [String] in
             let issueURL = configuration.location.baseURL.appendingPathComponent("browse/\(report.issue.key)").absoluteString
             return [
                 report.severity.label,
@@ -122,7 +184,7 @@ struct TerminalRenderer {
             formattedRow(widths.map { String(repeating: "-", count: $0) }, widths: widths),
         ]
 
-        for (report, row) in zip(reports, rows) {
+        for (report, row) in zip(paginatedReports, rows) {
             lines.append(formattedReportRow(
                 row,
                 widths: widths,
@@ -131,7 +193,7 @@ struct TerminalRenderer {
             ))
         }
 
-        if reports.isEmpty {
+        if paginatedReports.isEmpty {
             lines.append(emptyMessage(for: status))
         }
 

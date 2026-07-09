@@ -50,6 +50,12 @@ struct StaleTicketsCommand: AsyncParsableCommand {
     @Option(help: "Jira search page size.")
     var maxResults: Int = 100
 
+    @Option(help: "Number of tickets to show per rendered page. Falls back to 'duffyutils.jira-tools.page-size'.")
+    var pageSize: Int?
+
+    @Option(help: "Initial page number to show, 1-based. Falls back to 'duffyutils.jira-tools.page'.")
+    var page: Int?
+
     @Option(help: "Comma-separated Jira field names or ids to display after Assignee. Falls back to 'duffyutils.jira-tools.extra-fields'.")
     var extraFields: String?
 
@@ -80,6 +86,12 @@ struct StaleTicketsCommand: AsyncParsableCommand {
     @GitConfigValue(name: "duffyutils.jira-tools.sort")
     private var configuredSort: String?
 
+    @GitConfigValue(name: "duffyutils.jira-tools.page-size")
+    private var configuredPageSize: String?
+
+    @GitConfigValue(name: "duffyutils.jira-tools.page")
+    private var configuredPage: String?
+
     mutating func run() async throws {
         let configuredFilterURLValue = try await configuredFilterURL
         let configuredBaseURLValue = try await configuredBaseURL
@@ -88,6 +100,8 @@ struct StaleTicketsCommand: AsyncParsableCommand {
         let configuredDeemphasizedStatusesValue = try await configuredDeemphasizedStatuses
         let configuredHighlightStaleCommentsValue = try await configuredHighlightStaleComments
         let configuredSortValue = try await configuredSort
+        let configuredPageSizeValue = try await configuredPageSize
+        let configuredPageValue = try await configuredPage
         let filterURL = filterURL ?? configuredFilterURLValue
         let baseURL = baseURL ?? configuredBaseURLValue
         let jql = jql ?? configuredJQLValue
@@ -99,6 +113,18 @@ struct StaleTicketsCommand: AsyncParsableCommand {
             highlightStaleComments ?? configuredHighlightStaleCommentsValue ?? "assignee",
         )
         let sort = try parseTicketSort(sort ?? configuredSortValue ?? "latest-comment")
+        let pageSize = try resolvedPositiveInt(
+            option: pageSize,
+            configuredValue: configuredPageSizeValue,
+            defaultValue: 25,
+            name: "page-size",
+        )
+        let page = try resolvedPositiveInt(
+            option: page,
+            configuredValue: configuredPageValue,
+            defaultValue: 1,
+            name: "page",
+        )
         let notifyLevels = try parseSeveritySet(notifyLevels)
         let location = try resolveJiraLocation(
             filterURL: filterURL.flatMap(URL.init(string:)),
@@ -136,6 +162,10 @@ struct StaleTicketsCommand: AsyncParsableCommand {
             service: service,
             renderer: renderer,
             notifyLevels: notifyLevels,
+            pagination: PaginationState(
+                pageIndex: page - 1,
+                pageSize: pageSize,
+            ),
         )
     }
 
@@ -143,10 +173,12 @@ struct StaleTicketsCommand: AsyncParsableCommand {
         service: TicketRefreshService,
         renderer: TerminalRenderer,
         notifyLevels: Set<Severity>,
+        pagination: PaginationState,
     ) async throws {
         var previousStates: [String: TicketState] = [:]
         var firstRun = true
         var latestSnapshot: RefreshSnapshot?
+        var pagination = pagination
         let terminalInput = watch ? TerminalInput() : nil
         terminalInput?.enableRawMode()
         defer {
@@ -154,7 +186,7 @@ struct StaleTicketsCommand: AsyncParsableCommand {
             renderer.restoreTerminalDisplay()
         }
 
-        repeat {
+        refreshLoop: repeat {
             let snapshot: RefreshSnapshot
             var didRenderProgress = false
             let shouldRenderProgress = renderer.canReplaceOutput
@@ -164,9 +196,19 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                         return
                     }
 
+                    if case .queryingFilter = progressSnapshot.status {
+                        // Preserve the requested page until Jira returns the issue count.
+                    } else {
+                        pagination = pagination.clamped(totalItems: progressSnapshot.reports.count)
+                    }
                     didRenderProgress = true
-                    renderer.render(progressSnapshot, replacingPreviousOutput: true)
+                    renderer.render(
+                        progressSnapshot,
+                        pagination: pagination,
+                        replacingPreviousOutput: true,
+                    )
                 }
+                pagination = pagination.clamped(totalItems: snapshot.reports.count)
                 latestSnapshot = snapshot
             } catch {
                 snapshot = latestSnapshot?.addingError(error) ?? RefreshSnapshot(
@@ -177,9 +219,14 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                     errors: [String(describing: error)],
                     status: .failed,
                 )
+                pagination = pagination.clamped(totalItems: snapshot.reports.count)
             }
 
-            renderer.render(snapshot, replacingPreviousOutput: didRenderProgress)
+            renderer.render(
+                snapshot,
+                pagination: pagination,
+                replacingPreviousOutput: didRenderProgress,
+            )
             let changedAttentionTickets = snapshot.reports.filter { report in
                 guard notifyLevels.contains(report.severity) else {
                     return false
@@ -203,7 +250,41 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                 break
             }
 
-            try await waitForNextRefresh(intervalSeconds: interval, terminalInput: terminalInput)
+            while true {
+                let action = try await waitForNextRefresh(
+                    intervalSeconds: interval,
+                    terminalInput: terminalInput,
+                )
+
+                switch action {
+                case .refresh:
+                    continue refreshLoop
+                case .nextPage:
+                    guard let latestSnapshot else {
+                        continue
+                    }
+
+                    pagination.pageIndex += 1
+                    pagination = pagination.clamped(totalItems: latestSnapshot.reports.count)
+                    renderer.render(
+                        latestSnapshot,
+                        pagination: pagination,
+                        replacingPreviousOutput: true,
+                    )
+                case .previousPage:
+                    guard let latestSnapshot else {
+                        continue
+                    }
+
+                    pagination.pageIndex -= 1
+                    pagination = pagination.clamped(totalItems: latestSnapshot.reports.count)
+                    renderer.render(
+                        latestSnapshot,
+                        pagination: pagination,
+                        replacingPreviousOutput: true,
+                    )
+                }
+            }
         } while true
     }
 }
@@ -254,4 +335,31 @@ func parseTicketSort(_ rawValue: String) throws -> TicketSort {
     }
 
     return sort
+}
+
+func resolvedPositiveInt(
+    option: Int?,
+    configuredValue: String?,
+    defaultValue: Int,
+    name: String,
+) throws -> Int {
+    let value: Int
+    if let option {
+        value = option
+    } else if let configuredValue {
+        let trimmedValue = configuredValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let parsedValue = Int(trimmedValue) else {
+            throw AppError("Invalid \(name): \(configuredValue)")
+        }
+
+        value = parsedValue
+    } else {
+        value = defaultValue
+    }
+
+    guard value > 0 else {
+        throw AppError("\(name) must be greater than 0.")
+    }
+
+    return value
 }
