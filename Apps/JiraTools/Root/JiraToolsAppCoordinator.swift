@@ -95,6 +95,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
             isConfigured: preferences.isConfigured && location != nil,
             alertSeverities: preferences.alertSeverities,
             alertMode: preferences.alertMode,
+            tableSort: preferences.tableSort,
             saveConfiguration: { [weak self] draft, configuration in
             guard let self else {
                 throw CancellationError()
@@ -109,6 +110,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
                 isWatching: existingPreferences.isWatching,
                 alertSeverities: draft.alertSeverities,
                 alertMode: draft.alertMode,
+                tableSort: existingPreferences.tableSort,
                 configuration: configuration,
             ))
             return StaleTicketsRequest(
@@ -155,6 +157,14 @@ final class JiraToolsAppCoordinator: ObservableObject {
                 mode: mode,
             )
         },
+            sortDidChange: { [weak self] tableSort in
+            guard let self else {
+                return
+            }
+            var preferences = self.preferencesStore.value
+            preferences.tableSort = tableSort
+            try? self.preferencesStore.save(preferences)
+        },
         )
         viewModel.isConfigurationPresented = !preferences.isConfigured
         viewModel.isWatching = preferences.isConfigured && preferences.isWatching
@@ -170,6 +180,7 @@ private struct StaleTicketsPreferences: Codable {
     var isWatching = false
     var alertSeverities: Set<Severity> = [.warning, .error]
     var alertMode: JiraToolsAlertMode = .both
+    var tableSort = StaleTicketsTableSort()
     var configuration = StaleTicketsConfiguration(
         warningHours: 20 * 3_600,
         errorHours: 24 * 3_600,
@@ -189,6 +200,7 @@ private struct StaleTicketsPreferences: Codable {
         case isWatching
         case alertSeverities
         case alertMode
+        case tableSort
         case warningHours
         case errorHours
         case greenHours
@@ -209,6 +221,7 @@ private struct StaleTicketsPreferences: Codable {
         isWatching: Bool,
         alertSeverities: Set<Severity>,
         alertMode: JiraToolsAlertMode,
+        tableSort: StaleTicketsTableSort,
         configuration: StaleTicketsConfiguration,
     ) {
         self.filterInput = filterInput
@@ -218,6 +231,7 @@ private struct StaleTicketsPreferences: Codable {
         self.isWatching = isWatching
         self.alertSeverities = alertSeverities
         self.alertMode = alertMode
+        self.tableSort = tableSort
         self.configuration = configuration
     }
 
@@ -232,6 +246,7 @@ private struct StaleTicketsPreferences: Codable {
         isWatching = try container.decodeIfPresent(Bool.self, forKey: .isWatching) ?? false
         alertSeverities = try container.decodeIfPresent(Set<Severity>.self, forKey: .alertSeverities) ?? [.warning, .error]
         alertMode = try container.decodeIfPresent(JiraToolsAlertMode.self, forKey: .alertMode) ?? .both
+        tableSort = try container.decodeIfPresent(StaleTicketsTableSort.self, forKey: .tableSort) ?? StaleTicketsTableSort()
         configuration = StaleTicketsConfiguration(
             warningHours: try container.decodeIfPresent(TimeInterval.self, forKey: .warningHours) ?? 20 * 3_600,
             errorHours: try container.decodeIfPresent(TimeInterval.self, forKey: .errorHours) ?? 24 * 3_600,
@@ -255,6 +270,7 @@ private struct StaleTicketsPreferences: Codable {
         try container.encode(isWatching, forKey: .isWatching)
         try container.encode(alertSeverities, forKey: .alertSeverities)
         try container.encode(alertMode, forKey: .alertMode)
+        try container.encode(tableSort, forKey: .tableSort)
         try container.encode(configuration.warningHours, forKey: .warningHours)
         try container.encode(configuration.errorHours, forKey: .errorHours)
         try container.encode(configuration.greenHours, forKey: .greenHours)

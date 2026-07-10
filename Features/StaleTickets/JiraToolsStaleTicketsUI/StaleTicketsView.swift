@@ -133,42 +133,36 @@ public struct StaleTicketsView: View {
         Table(viewModel.rows, sortOrder: $viewModel.sortOrder) {
             standardColumns()
             TableColumnForEach(snapshot.extraFields, id: \.id) { field in
-                TableColumn(field.name) { row in
+                TableColumn(field.name, sortUsing: StaleTicketsTableComparator(column: .extraField(field.id))) { row in
                     Text(row.extraFieldValue(for: field.id))
                 }
                 .width(min: 100, ideal: 150)
             }
             commentAndSummaryColumns()
         }
-        .onChange(of: viewModel.sortOrder) { _ in
-            viewModel.updateSortOrder()
-        }
     }
 
     private func fallbackTicketsTable() -> some View {
         Table(viewModel.rows, sortOrder: $viewModel.sortOrder) {
             standardColumns()
-            TableColumn("Extra Fields", value: \.extraFieldsDisplay) { row in
+            TableColumn("Extra Fields", sortUsing: StaleTicketsTableComparator(column: .extraFields)) { row in
                 Text(row.extraFieldsDisplay.isEmpty ? "—" : row.extraFieldsDisplay)
                     .lineLimit(3)
             }
             .width(min: 150, ideal: 220)
             commentAndSummaryColumns()
         }
-        .onChange(of: viewModel.sortOrder) { _ in
-            viewModel.updateSortOrder()
-        }
     }
 
-    @TableColumnBuilder<StaleTicketsTableRow, KeyPathComparator<StaleTicketsTableRow>>
-    private func standardColumns() -> some TableColumnContent<StaleTicketsTableRow, KeyPathComparator<StaleTicketsTableRow>> {
-        TableColumn("Severity", value: \.severityRank) { row in
+    @TableColumnBuilder<StaleTicketsTableRow, StaleTicketsTableComparator>
+    private func standardColumns() -> some TableColumnContent<StaleTicketsTableRow, StaleTicketsTableComparator> {
+        TableColumn("Severity", sortUsing: StaleTicketsTableComparator(column: .severity)) { row in
             Text(row.severityLabel)
                 .foregroundStyle(severityColor(for: row))
         }
         .width(min: 76, ideal: 88)
 
-        TableColumn("Key", value: \.key) { row in
+        TableColumn("Key", sortUsing: StaleTicketsTableComparator(column: .key)) { row in
             Button(row.key) {
                 openURL(viewModel.issueURL(for: row))
             }
@@ -176,40 +170,40 @@ public struct StaleTicketsView: View {
         }
         .width(min: 80, ideal: 100)
 
-        TableColumn("Status", value: \.status) { row in
+        TableColumn("Status", sortUsing: StaleTicketsTableComparator(column: .status)) { row in
             Text(row.status)
         }
         .width(min: 90, ideal: 130)
 
-        TableColumn("Assignee", value: \.assignee) { row in
+        TableColumn("Assignee", sortUsing: StaleTicketsTableComparator(column: .assignee)) { row in
             Text(row.assignee)
         }
         .width(min: 100, ideal: 150)
     }
 
-    @TableColumnBuilder<StaleTicketsTableRow, KeyPathComparator<StaleTicketsTableRow>>
-    private func commentAndSummaryColumns() -> some TableColumnContent<StaleTicketsTableRow, KeyPathComparator<StaleTicketsTableRow>> {
-        TableColumn("Your Comment", value: \.currentUserCommentDate) { row in
+    @TableColumnBuilder<StaleTicketsTableRow, StaleTicketsTableComparator>
+    private func commentAndSummaryColumns() -> some TableColumnContent<StaleTicketsTableRow, StaleTicketsTableComparator> {
+        TableColumn("Your Comment", sortUsing: StaleTicketsTableComparator(column: .currentUserComment)) { row in
             Text(ageText(row.report.latestCurrentUserCommentDate))
         }
         .width(min: 110, ideal: 140)
 
-        TableColumn("Assignee Comment", value: \.assigneeCommentDate) { row in
+        TableColumn("Assignee Comment", sortUsing: StaleTicketsTableComparator(column: .assigneeComment)) { row in
             Text(ageText(row.report.latestAssigneeCommentDate))
         }
         .width(min: 130, ideal: 155)
 
-        TableColumn("Latest Comment", value: \.latestCommentDate) { row in
+        TableColumn("Latest Comment", sortUsing: StaleTicketsTableComparator(column: .latestComment)) { row in
             Text(ageText(row.report.latestCommentDate))
         }
         .width(min: 120, ideal: 145)
 
-        TableColumn("Latest Reply", value: \.latestReplyDate) { row in
+        TableColumn("Latest Reply", sortUsing: StaleTicketsTableComparator(column: .latestReply)) { row in
             Text(ageText(row.report.latestReplyDate, missing: "None"))
         }
         .width(min: 110, ideal: 135)
 
-        TableColumn("Summary", value: \.summary) { row in
+        TableColumn("Summary", sortUsing: StaleTicketsTableComparator(column: .summary)) { row in
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.summary)
                 if let error = row.report.error {
