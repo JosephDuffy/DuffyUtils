@@ -1,6 +1,7 @@
 import ArgumentParser
 import DuffyUtilsInternals
 import Foundation
+import JiraToolsCore
 
 struct StaleTicketsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(

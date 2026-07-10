@@ -1,4 +1,13 @@
+import ArgumentParser
 import Foundation
+import JiraToolsCore
+
+enum AlertMode: String, ExpressibleByArgument, Sendable {
+    case notification
+    case sound
+    case both
+    case none
+}
 
 func sendAlert(for reports: [TicketReport], mode: AlertMode) {
     guard mode != .none else {

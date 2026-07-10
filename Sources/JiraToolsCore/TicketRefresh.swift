@@ -1,25 +1,61 @@
 import Foundation
 
-struct TicketsConfiguration: Sendable {
-    var warningHours: TimeInterval
-    var errorHours: TimeInterval
-    var greenHours: TimeInterval
-    var maxResults: Int
-    var extraFields: [String]
-    var deemphasizedStatuses: [String]
-    var highlightedCommentSources: Set<HighlightedCommentSource>
-    var sort: TicketSort
+package struct TicketsConfiguration: Sendable {
+    package var warningHours: TimeInterval
+    package var errorHours: TimeInterval
+    package var greenHours: TimeInterval
+    package var maxResults: Int
+    package var extraFields: [String]
+    package var deemphasizedStatuses: [String]
+    package var highlightedCommentSources: Set<HighlightedCommentSource>
+    package var sort: TicketSort
+
+    package init(
+        warningHours: TimeInterval,
+        errorHours: TimeInterval,
+        greenHours: TimeInterval,
+        maxResults: Int,
+        extraFields: [String],
+        deemphasizedStatuses: [String],
+        highlightedCommentSources: Set<HighlightedCommentSource>,
+        sort: TicketSort,
+    ) {
+        self.warningHours = warningHours
+        self.errorHours = errorHours
+        self.greenHours = greenHours
+        self.maxResults = maxResults
+        self.extraFields = extraFields
+        self.deemphasizedStatuses = deemphasizedStatuses
+        self.highlightedCommentSources = highlightedCommentSources
+        self.sort = sort
+    }
 }
 
-struct RefreshSnapshot: Sendable {
-    let reports: [TicketReport]
-    let extraFields: [JiraField]
-    let currentUserName: String
-    let updatedAt: Date
-    let errors: [String]
-    let status: RefreshStatus
+package struct RefreshSnapshot: Sendable {
+    package let reports: [TicketReport]
+    package let extraFields: [JiraField]
+    package let currentUserName: String
+    package let updatedAt: Date
+    package let errors: [String]
+    package let status: RefreshStatus
 
-    func addingError(_ error: Error) -> RefreshSnapshot {
+    package init(
+        reports: [TicketReport],
+        extraFields: [JiraField],
+        currentUserName: String,
+        updatedAt: Date,
+        errors: [String],
+        status: RefreshStatus,
+    ) {
+        self.reports = reports
+        self.extraFields = extraFields
+        self.currentUserName = currentUserName
+        self.updatedAt = updatedAt
+        self.errors = errors
+        self.status = status
+    }
+
+    package func addingError(_ error: Error) -> RefreshSnapshot {
         RefreshSnapshot(
             reports: reports,
             extraFields: extraFields,
@@ -31,49 +67,49 @@ struct RefreshSnapshot: Sendable {
     }
 }
 
-enum RefreshStatus: Sendable {
+package enum RefreshStatus: Sendable {
     case queryingFilter
     case checkingComments(completed: Int, total: Int)
     case complete
     case failed
 }
 
-struct TicketReport: Sendable {
-    let issue: JiraIssue
-    let latestCommentDate: Date?
-    let latestReplyDate: Date?
-    let latestCurrentUserCommentDate: Date?
-    let latestAssigneeCommentDate: Date?
-    let highlightSeverities: [HighlightedCommentSource: Severity]
-    let severity: Severity
-    let isDeemphasized: Bool
-    let areCommentsLoading: Bool
-    let error: String?
+package struct TicketReport: Sendable {
+    package let issue: JiraIssue
+    package let latestCommentDate: Date?
+    package let latestReplyDate: Date?
+    package let latestCurrentUserCommentDate: Date?
+    package let latestAssigneeCommentDate: Date?
+    package let highlightSeverities: [HighlightedCommentSource: Severity]
+    package let severity: Severity
+    package let isDeemphasized: Bool
+    package let areCommentsLoading: Bool
+    package let error: String?
 }
 
-enum HighlightedCommentSource: String, CaseIterable, Sendable {
+package enum HighlightedCommentSource: String, CaseIterable, Sendable {
     case currentUser = "current-user"
     case anyUser = "any-user"
     case assignee
 }
 
-enum TicketSort: String, Sendable {
+package enum TicketSort: String, Sendable {
     case latestComment = "latest-comment"
     case currentUser = "current-user"
     case assignee
 }
 
-struct TicketState: Equatable, Sendable {
-    let severity: Severity
-    let latestCurrentUserCommentDate: Date?
-    let latestAssigneeCommentDate: Date?
-    let latestCommentDate: Date?
-    let latestReplyDate: Date?
-    let highlightSeverities: [HighlightedCommentSource: Severity]
-    let areCommentsLoading: Bool
-    let error: String?
+package struct TicketState: Equatable, Sendable {
+    package let severity: Severity
+    package let latestCurrentUserCommentDate: Date?
+    package let latestAssigneeCommentDate: Date?
+    package let latestCommentDate: Date?
+    package let latestReplyDate: Date?
+    package let highlightSeverities: [HighlightedCommentSource: Severity]
+    package let areCommentsLoading: Bool
+    package let error: String?
 
-    init(report: TicketReport) {
+    package init(report: TicketReport) {
         severity = report.severity
         latestCurrentUserCommentDate = report.latestCurrentUserCommentDate
         latestAssigneeCommentDate = report.latestAssigneeCommentDate
@@ -85,12 +121,22 @@ struct TicketState: Equatable, Sendable {
     }
 }
 
-struct TicketRefreshService: Sendable {
-    let credentials: JiraCredentials
-    let location: ResolvedJiraLocation
-    let configuration: TicketsConfiguration
+package struct TicketRefreshService: Sendable {
+    package let credentials: JiraCredentials
+    package let location: ResolvedJiraLocation
+    package let configuration: TicketsConfiguration
 
-    func refresh(progress: ((RefreshSnapshot) -> Void)? = nil) async throws -> RefreshSnapshot {
+    package init(
+        credentials: JiraCredentials,
+        location: ResolvedJiraLocation,
+        configuration: TicketsConfiguration,
+    ) {
+        self.credentials = credentials
+        self.location = location
+        self.configuration = configuration
+    }
+
+    package func refresh(progress: ((RefreshSnapshot) -> Void)? = nil) async throws -> RefreshSnapshot {
         var errors: [String] = []
         progress?(RefreshSnapshot(
             reports: [],
@@ -336,7 +382,7 @@ struct TicketRefreshService: Sendable {
     }
 }
 
-func resolveJiraFields(
+package func resolveJiraFields(
     _ configuredFields: [String],
     client: JiraClient,
 ) async throws -> [JiraField] {
@@ -366,7 +412,7 @@ func resolveJiraFields(
     }
 }
 
-func latestCommentDate(
+package func latestCommentDate(
     in comments: [JiraComment],
     by accountId: String?,
 ) -> Date? {
@@ -380,7 +426,7 @@ func latestCommentDate(
         .max()
 }
 
-func severity(
+package func severity(
     for latestCommentDate: Date?,
     configuration: TicketsConfiguration,
 ) -> Severity {
@@ -404,7 +450,7 @@ func severity(
     return .neutral
 }
 
-func isDeemphasizedStatus(
+package func isDeemphasizedStatus(
     _ status: String,
     statuses: [String],
 ) -> Bool {

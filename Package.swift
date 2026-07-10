@@ -7,6 +7,16 @@ let package = Package(
     platforms: [
         .macOS(.v13),
     ],
+    products: [
+        .library(
+            name: "JiraToolsCore",
+            targets: ["JiraToolsCore"],
+        ),
+        .executable(
+            name: "jira-tools",
+            targets: ["JiraToolsCLI"],
+        ),
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.2"),
         .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "main"),
@@ -28,6 +38,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
+            name: "export-signed-app",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Subprocess", package: "swift-subprocess"),
+            ]
+        ),
+        .executableTarget(
             name: "git-new-branch-and-worktree",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
@@ -36,11 +53,17 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "jira-tools",
+            name: "JiraToolsCLI",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "DuffyUtilsInternals",
-            ]
+                "JiraToolsCore",
+            ],
+            path: "Sources/JiraToolsCLI",
+        ),
+        .target(
+            name: "JiraToolsCore",
+            path: "Sources/JiraToolsCore",
         ),
         .executableTarget(
             name: "open-in-jira",
@@ -87,6 +110,10 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
             ]
+        ),
+        .testTarget(
+            name: "JiraToolsCoreTests",
+            dependencies: ["JiraToolsCore"],
         ),
     ]
 )

@@ -1,17 +1,16 @@
-import ArgumentParser
 import Foundation
 
-enum Severity: String, CaseIterable, Comparable, Sendable {
+package enum Severity: String, CaseIterable, Comparable, Sendable {
     case error
     case warning
     case ok
     case neutral
 
-    static func < (lhs: Severity, rhs: Severity) -> Bool {
+    package static func < (lhs: Severity, rhs: Severity) -> Bool {
         return lhs.priority < rhs.priority
     }
 
-    var label: String {
+    package var label: String {
         switch self {
         case .error:
             "ERROR"
@@ -34,18 +33,11 @@ enum Severity: String, CaseIterable, Comparable, Sendable {
     }
 }
 
-enum AlertMode: String, ExpressibleByArgument, Sendable {
-    case notification
-    case sound
-    case both
-    case none
-}
+package struct JiraCredentials: Sendable {
+    package let email: String
+    package let token: String
 
-struct JiraCredentials: Sendable {
-    let email: String
-    let token: String
-
-    static func fromEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) throws -> JiraCredentials {
+    package static func fromEnvironment(_ environment: [String: String] = ProcessInfo.processInfo.environment) throws -> JiraCredentials {
         guard let email = environment["JIRA_EMAIL"], !email.isEmpty else {
             throw AppError("Missing JIRA_EMAIL environment variable")
         }
@@ -58,28 +50,28 @@ struct JiraCredentials: Sendable {
     }
 }
 
-struct JiraUser: Decodable, Sendable {
-    let accountId: String
-    let displayName: String?
+package struct JiraUser: Decodable, Sendable {
+    package let accountId: String
+    package let displayName: String?
 }
 
-struct SearchResponse: Decodable, Sendable {
-    let issues: [JiraIssue]
-    let isLast: Bool?
-    let nextPageToken: String?
+package struct SearchResponse: Decodable, Sendable {
+    package let issues: [JiraIssue]
+    package let isLast: Bool?
+    package let nextPageToken: String?
 }
 
-struct JiraIssue: Decodable, Sendable {
-    let id: String
-    let key: String
-    let fields: IssueFields
+package struct JiraIssue: Decodable, Sendable {
+    package let id: String
+    package let key: String
+    package let fields: IssueFields
 }
 
-struct IssueFields: Decodable, Sendable {
-    let summary: String
-    let status: JiraStatus
-    let assignee: JiraUser?
-    let extraFields: [String: JiraFieldValue]
+package struct IssueFields: Decodable, Sendable {
+    package let summary: String
+    package let status: JiraStatus
+    package let assignee: JiraUser?
+    package let extraFields: [String: JiraFieldValue]
 
     enum CodingKeys: String, CodingKey {
         case summary
@@ -87,7 +79,7 @@ struct IssueFields: Decodable, Sendable {
         case assignee
     }
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         summary = try container.decode(String.self, forKey: .summary)
         status = try container.decode(JiraStatus.self, forKey: .status)
@@ -108,29 +100,29 @@ struct IssueFields: Decodable, Sendable {
     }
 }
 
-struct JiraStatus: Decodable, Sendable {
-    let name: String
+package struct JiraStatus: Decodable, Sendable {
+    package let name: String
 }
 
-struct JiraField: Decodable, Sendable {
-    let id: String
-    let name: String
+package struct JiraField: Decodable, Sendable {
+    package let id: String
+    package let name: String
 }
 
-struct CommentsResponse: Decodable, Sendable {
-    let comments: [JiraComment]
-    let startAt: Int?
-    let maxResults: Int?
-    let total: Int?
-    let isLast: Bool?
+package struct CommentsResponse: Decodable, Sendable {
+    package let comments: [JiraComment]
+    package let startAt: Int?
+    package let maxResults: Int?
+    package let total: Int?
+    package let isLast: Bool?
 }
 
-struct JiraComment: Decodable, Sendable {
-    let id: String
-    let author: JiraUser
-    let created: String
-    let updated: String?
-    let parentId: String?
+package struct JiraComment: Decodable, Sendable {
+    package let id: String
+    package let author: JiraUser
+    package let created: String
+    package let updated: String?
+    package let parentId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -143,7 +135,7 @@ struct JiraComment: Decodable, Sendable {
         case parentCommentId
     }
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         author = try container.decode(JiraUser.self, forKey: .author)
@@ -163,27 +155,27 @@ struct JiraComment: Decodable, Sendable {
         }
     }
 
-    var isReply: Bool {
+    package var isReply: Bool {
         parentId != nil
     }
 }
 
-struct DynamicCodingKey: CodingKey {
-    let stringValue: String
-    let intValue: Int?
+package struct DynamicCodingKey: CodingKey {
+    package let stringValue: String
+    package let intValue: Int?
 
-    init?(stringValue: String) {
+    package init?(stringValue: String) {
         self.stringValue = stringValue
         intValue = nil
     }
 
-    init?(intValue: Int) {
+    package init?(intValue: Int) {
         stringValue = String(intValue)
         self.intValue = intValue
     }
 }
 
-enum JiraFieldValue: Decodable, Sendable {
+package enum JiraFieldValue: Decodable, Sendable {
     case string(String)
     case user(JiraUser)
     case array([JiraFieldValue])
@@ -192,7 +184,7 @@ enum JiraFieldValue: Decodable, Sendable {
     case bool(Bool)
     case null
 
-    init(from decoder: Decoder) throws {
+    package init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
         if container.decodeNil() {
@@ -214,7 +206,7 @@ enum JiraFieldValue: Decodable, Sendable {
         }
     }
 
-    var displayValue: String {
+    package var displayValue: String {
         switch self {
         case .string(let value):
             value
@@ -236,7 +228,7 @@ enum JiraFieldValue: Decodable, Sendable {
         }
     }
 
-    var idValue: String? {
+    package var idValue: String? {
         switch self {
         case .string(let value):
             value
@@ -288,7 +280,7 @@ extension [String: JiraFieldValue] {
     }
 }
 
-func decodeStringOrNumberIfPresent<K: CodingKey>(
+package func decodeStringOrNumberIfPresent<K: CodingKey>(
     _ container: KeyedDecodingContainer<K>,
     forKey key: K,
 ) throws -> String? {

@@ -112,6 +112,36 @@ command.
 The signing identity must be a `Developer ID Application` certificate; `Apple Development` and
 `Apple Distribution` certificates cannot be used for notarised command-line tools.
 
+## `Jira Tools.app`
+
+`Jira Tools.app` is a macOS 13+ SwiftUI app that currently displays a Hello World window. Its
+app target lives in [`Apps/JiraTools`](Apps/JiraTools) and links the `JiraToolsCore` library that
+also powers the `jira-tools` command-line product.
+
+To build it locally without signing:
+
+```bash
+xcodebuild \
+    -project Apps/JiraTools/JiraTools.xcodeproj \
+    -scheme JiraToolsApp \
+    CODE_SIGNING_ALLOWED=NO \
+    build
+```
+
+To create a notarised Developer ID disk image, first save a `notarytool` profile, then run:
+
+```bash
+xcrun notarytool store-credentials duffyutils
+
+swift run export-signed-app \
+    --signing-identity "Developer ID Application: Your Name (TEAMID)" \
+    --team-id TEAMID \
+    --notary-profile duffyutils
+```
+
+The exporter creates a universal app archive, a drag-install DMG, notarises it, staples the
+notarization ticket, and validates the resulting disk image.
+
 ## Installation
 
 If you don't have Swift installed, first [install Swift](https://www.swift.org/install/). <sup>[Why Swift?](#why-swift)</sup>

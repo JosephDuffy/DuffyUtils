@@ -1,19 +1,19 @@
 import Foundation
 
-struct AppError: Error, CustomStringConvertible, Sendable {
-    let description: String
+package struct AppError: Error, CustomStringConvertible, Sendable {
+    package let description: String
 
-    init(_ description: String) {
+    package init(_ description: String) {
         self.description = description
     }
 }
 
-struct ResolvedJiraLocation: Sendable {
-    let baseURL: URL
-    let jql: String
+package struct ResolvedJiraLocation: Sendable {
+    package let baseURL: URL
+    package let jql: String
 }
 
-final class JiraClient {
+package final class JiraClient {
     private let baseURL: URL
     private let authorization: String
     private let decoder: JSONDecoder
@@ -34,15 +34,15 @@ final class JiraClient {
         self.decoder = decoder
     }
 
-    func currentUser() async throws -> JiraUser {
+    package func currentUser() async throws -> JiraUser {
         try await get(path: "/rest/api/3/myself", queryItems: [])
     }
 
-    func fields() async throws -> [JiraField] {
+    package func fields() async throws -> [JiraField] {
         try await get(path: "/rest/api/3/field", queryItems: [])
     }
 
-    func searchIssues(
+    package func searchIssues(
         jql: String,
         maxResults: Int,
         fields: [String],
@@ -76,7 +76,7 @@ final class JiraClient {
         return issues
     }
 
-    func comments(for issueKey: String) async throws -> [JiraComment] {
+    package func comments(for issueKey: String) async throws -> [JiraComment] {
         var comments: [JiraComment] = []
         var startAt = 0
 
@@ -142,7 +142,7 @@ final class JiraClient {
     }
 }
 
-func resolveJiraLocation(
+package func resolveJiraLocation(
     filterURL: URL?,
     jql: String?,
     baseURL: URL?,
@@ -178,7 +178,7 @@ func resolveJiraLocation(
     throw AppError("Filter URL must include either a filter=ID or jql=... query parameter.")
 }
 
-func jiraBaseURL(from url: URL) -> URL? {
+package func jiraBaseURL(from url: URL) -> URL? {
     guard let scheme = url.scheme, let host = url.host else {
         return nil
     }

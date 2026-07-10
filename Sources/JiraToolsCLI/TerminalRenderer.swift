@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import JiraToolsCore
 
 struct RendererConfiguration {
     let location: ResolvedJiraLocation
