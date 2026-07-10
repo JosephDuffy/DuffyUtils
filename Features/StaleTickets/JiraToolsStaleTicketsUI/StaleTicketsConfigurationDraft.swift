@@ -1,0 +1,172 @@
+import Foundation
+import JiraToolsAppFoundation
+import JiraToolsCore
+import JiraToolsStaleTickets
+
+public enum StaleTicketsQueryMode: String, CaseIterable, Codable, Sendable {
+    case filter
+    case jql
+}
+
+public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
+    public var filterInput: String
+    public var queryMode: StaleTicketsQueryMode
+    public var baseURL: String
+    public var extraFields: String
+    public var deemphasizedStatuses: String
+    public var highlightedCommentSources: Set<HighlightedCommentSource>
+    public var greenHours: Double
+    public var warningHours: Double
+    public var errorHours: Double
+    public var maxResults: Int
+    public var serviceSort: TicketSort
+    public var refreshInterval: TimeInterval
+    public var alertSeverities: Set<Severity>
+    public var alertMode: JiraToolsAlertMode
+
+    public init(
+        filterInput: String,
+        queryMode: StaleTicketsQueryMode,
+        baseURL: String,
+        extraFields: String,
+        deemphasizedStatuses: String,
+        highlightedCommentSources: Set<HighlightedCommentSource>,
+        greenHours: Double,
+        warningHours: Double,
+        errorHours: Double,
+        maxResults: Int,
+        serviceSort: TicketSort,
+        refreshInterval: TimeInterval,
+        alertSeverities: Set<Severity>,
+        alertMode: JiraToolsAlertMode,
+    ) {
+        self.filterInput = filterInput
+        self.queryMode = queryMode
+        self.baseURL = baseURL
+        self.extraFields = extraFields
+        self.deemphasizedStatuses = deemphasizedStatuses
+        self.highlightedCommentSources = highlightedCommentSources
+        self.greenHours = greenHours
+        self.warningHours = warningHours
+        self.errorHours = errorHours
+        self.maxResults = maxResults
+        self.serviceSort = serviceSort
+        self.refreshInterval = refreshInterval
+        self.alertSeverities = alertSeverities
+        self.alertMode = alertMode
+    }
+
+    public init(
+        configuration: StaleTicketsConfiguration,
+        filterInput: String,
+        queryMode: StaleTicketsQueryMode,
+        baseURL: String,
+        refreshInterval: TimeInterval,
+    ) {
+        self.init(
+            filterInput: filterInput,
+            queryMode: queryMode,
+            baseURL: baseURL,
+            extraFields: configuration.extraFields.joined(separator: ", "),
+            deemphasizedStatuses: configuration.deemphasizedStatuses.joined(separator: ", "),
+            highlightedCommentSources: configuration.highlightedCommentSources,
+            greenHours: configuration.greenHours / 3_600,
+            warningHours: configuration.warningHours / 3_600,
+            errorHours: configuration.errorHours / 3_600,
+            maxResults: configuration.maxResults,
+            serviceSort: configuration.sort,
+            refreshInterval: refreshInterval,
+            alertSeverities: [.warning, .error],
+            alertMode: .both,
+        )
+    }
+
+    public func validatedConfiguration() throws -> StaleTicketsConfiguration {
+        guard maxResults > 0 else {
+            throw StaleTicketsConfigurationValidationError.nonPositiveResultLimit
+        }
+
+        guard refreshInterval > 0 else {
+            throw StaleTicketsConfigurationValidationError.nonPositiveRefreshInterval
+        }
+
+        guard !highlightedCommentSources.isEmpty else {
+            throw StaleTicketsConfigurationValidationError.missingHighlightedSource
+        }
+
+        guard greenHours <= warningHours, warningHours < errorHours else {
+            throw StaleTicketsConfigurationValidationError.invalidThresholds
+        }
+
+        return StaleTicketsConfiguration(
+            warningHours: warningHours * 3_600,
+            errorHours: errorHours * 3_600,
+            greenHours: greenHours * 3_600,
+            maxResults: maxResults,
+            extraFields: commaSeparatedValues(from: extraFields),
+            deemphasizedStatuses: commaSeparatedValues(from: deemphasizedStatuses),
+            highlightedCommentSources: highlightedCommentSources,
+            sort: serviceSort,
+        )
+    }
+
+    public func resolvedLocation() throws -> ResolvedJiraLocation {
+        guard let baseURL = jiraURL(from: baseURL) else {
+            throw StaleTicketsConfigurationValidationError.invalidBaseURL
+        }
+
+        let queryInput = filterInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !queryInput.isEmpty else {
+            throw StaleTicketsConfigurationValidationError.missingFilter
+        }
+
+        switch queryMode {
+        case .filter:
+            if queryInput.allSatisfy(\.isNumber) {
+                return ResolvedJiraLocation(baseURL: baseURL, jql: "filter = \(queryInput)")
+            }
+            guard let filterURL = jiraURL(from: queryInput) else {
+                throw StaleTicketsConfigurationValidationError.invalidFilterURL
+            }
+            return try resolveJiraLocation(filterURL: filterURL, jql: nil, baseURL: baseURL)
+        case .jql:
+            return ResolvedJiraLocation(baseURL: baseURL, jql: queryInput)
+        }
+    }
+
+    private func commaSeparatedValues(from input: String) -> [String] {
+        input
+            .split(whereSeparator: { $0 == "," || $0.isNewline })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+}
+
+public enum StaleTicketsConfigurationValidationError: LocalizedError, Equatable, Sendable {
+    case invalidBaseURL
+    case invalidFilterURL
+    case missingFilter
+    case nonPositiveResultLimit
+    case nonPositiveRefreshInterval
+    case missingHighlightedSource
+    case invalidThresholds
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidBaseURL:
+            "Enter a valid Jira site URL."
+        case .invalidFilterURL:
+            "Enter a Jira filter URL or numeric filter ID."
+        case .missingFilter:
+            "Enter a filter URL or JQL query."
+        case .nonPositiveResultLimit:
+            "The result limit must be greater than zero."
+        case .nonPositiveRefreshInterval:
+            "The refresh interval must be greater than zero."
+        case .missingHighlightedSource:
+            "Choose at least one staleness source."
+        case .invalidThresholds:
+            "Green must be no greater than warning, and warning must be less than error."
+        }
+    }
+}

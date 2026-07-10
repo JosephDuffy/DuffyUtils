@@ -2,6 +2,7 @@ import ArgumentParser
 import DuffyUtilsInternals
 import Foundation
 import JiraToolsCore
+import JiraToolsStaleTickets
 
 struct StaleTicketsCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -132,7 +133,7 @@ struct StaleTicketsCommand: AsyncParsableCommand {
             jql: jql,
             baseURL: baseURL.flatMap(URL.init(string:)),
         )
-        let configuration = TicketsConfiguration(
+        let configuration = StaleTicketsConfiguration(
             warningHours: warningHours,
             errorHours: errorHours,
             greenHours: greenHours,
@@ -152,11 +153,13 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                 noColor: noColor,
             ),
         )
-        let credentials = try JiraCredentials.fromEnvironment()
-        let service = TicketRefreshService(
-            credentials: credentials,
-            location: location,
-            configuration: configuration,
+        let authorization = try jiraAuthorizationFromEnvironment()
+        let service = StaleTicketsRefreshService(
+            request: StaleTicketsRequest(
+                authorization: authorization,
+                location: location,
+                configuration: configuration,
+            ),
         )
 
         try await runRefreshLoop(
@@ -171,14 +174,14 @@ struct StaleTicketsCommand: AsyncParsableCommand {
     }
 
     private func runRefreshLoop(
-        service: TicketRefreshService,
+        service: StaleTicketsRefreshService,
         renderer: TerminalRenderer,
         notifyLevels: Set<Severity>,
         pagination: PaginationState,
     ) async throws {
-        var previousStates: [String: TicketState] = [:]
+        var previousStates: [String: StaleTicketState] = [:]
         var firstRun = true
-        var latestSnapshot: RefreshSnapshot?
+        var latestSnapshot: StaleTicketsSnapshot?
         var pagination = pagination
         let terminalInput = watch ? TerminalInput() : nil
         terminalInput?.enableRawMode()
@@ -188,31 +191,35 @@ struct StaleTicketsCommand: AsyncParsableCommand {
         }
 
         refreshLoop: repeat {
-            let snapshot: RefreshSnapshot
+            let snapshot: StaleTicketsSnapshot
             var didRenderProgress = false
             let shouldRenderProgress = renderer.canReplaceOutput
             do {
-                snapshot = try await service.refresh { progressSnapshot in
-                    guard shouldRenderProgress else {
-                        return
+                var refreshedSnapshot: StaleTicketsSnapshot?
+                for try await progressSnapshot in service.refresh() {
+                    if shouldRenderProgress {
+                        if case .queryingFilter = progressSnapshot.status {
+                            // Preserve the requested page until Jira returns the issue count.
+                        } else {
+                            pagination = pagination.clamped(totalItems: progressSnapshot.reports.count)
+                        }
+                        didRenderProgress = true
+                        renderer.render(
+                            progressSnapshot,
+                            pagination: pagination,
+                            replacingPreviousOutput: true,
+                        )
                     }
-
-                    if case .queryingFilter = progressSnapshot.status {
-                        // Preserve the requested page until Jira returns the issue count.
-                    } else {
-                        pagination = pagination.clamped(totalItems: progressSnapshot.reports.count)
-                    }
-                    didRenderProgress = true
-                    renderer.render(
-                        progressSnapshot,
-                        pagination: pagination,
-                        replacingPreviousOutput: true,
-                    )
+                    refreshedSnapshot = progressSnapshot
                 }
+                guard let refreshedSnapshot else {
+                    throw JiraToolsError("Jira refresh completed without a snapshot.")
+                }
+                snapshot = refreshedSnapshot
                 pagination = pagination.clamped(totalItems: snapshot.reports.count)
                 latestSnapshot = snapshot
             } catch {
-                snapshot = latestSnapshot?.addingError(error) ?? RefreshSnapshot(
+                snapshot = latestSnapshot?.addingError(error) ?? StaleTicketsSnapshot(
                     reports: [],
                     extraFields: [],
                     currentUserName: "unknown",
@@ -232,7 +239,7 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                 guard notifyLevels.contains(report.severity) else {
                     return false
                 }
-                let state = TicketState(report: report)
+                let state = StaleTicketState(report: report)
                 let previous = previousStates[report.issue.key]
                 if firstRun {
                     return notifyOnStart
@@ -244,7 +251,7 @@ struct StaleTicketsCommand: AsyncParsableCommand {
                 sendAlert(for: changedAttentionTickets, mode: alert)
             }
 
-            previousStates = Dictionary(uniqueKeysWithValues: snapshot.reports.map { ($0.issue.key, TicketState(report: $0)) })
+            previousStates = Dictionary(uniqueKeysWithValues: snapshot.reports.map { ($0.issue.key, StaleTicketState(report: $0)) })
             firstRun = false
 
             if !watch {
@@ -297,7 +304,7 @@ func parseSeveritySet(_ rawValue: String) throws -> Set<Severity> {
 
     let levels = try rawValue.split(separator: ",").map { rawLevel -> Severity in
         guard let severity = Severity(rawValue: rawLevel.trimmingCharacters(in: .whitespacesAndNewlines)) else {
-            throw AppError("Unknown notify level: \(rawLevel)")
+            throw JiraToolsError("Unknown notify level: \(rawLevel)")
         }
         return severity
     }
@@ -320,7 +327,7 @@ func parseHighlightedCommentSources(_ rawValue: String) throws -> Set<Highlighte
 
     let sources = try rawSources.map { rawSource -> HighlightedCommentSource in
         guard let source = HighlightedCommentSource(rawValue: rawSource) else {
-            throw AppError("Unknown stale comment highlight source: \(rawSource)")
+            throw JiraToolsError("Unknown stale comment highlight source: \(rawSource)")
         }
 
         return source
@@ -332,7 +339,7 @@ func parseHighlightedCommentSources(_ rawValue: String) throws -> Set<Highlighte
 func parseTicketSort(_ rawValue: String) throws -> TicketSort {
     let trimmedRawValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let sort = TicketSort(rawValue: trimmedRawValue) else {
-        throw AppError("Unknown ticket sort: \(rawValue)")
+        throw JiraToolsError("Unknown ticket sort: \(rawValue)")
     }
 
     return sort
@@ -350,7 +357,7 @@ func resolvedPositiveInt(
     } else if let configuredValue {
         let trimmedValue = configuredValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let parsedValue = Int(trimmedValue) else {
-            throw AppError("Invalid \(name): \(configuredValue)")
+            throw JiraToolsError("Invalid \(name): \(configuredValue)")
         }
 
         value = parsedValue
@@ -359,8 +366,22 @@ func resolvedPositiveInt(
     }
 
     guard value > 0 else {
-        throw AppError("\(name) must be greater than 0.")
+        throw JiraToolsError("\(name) must be greater than 0.")
     }
 
     return value
+}
+
+func jiraAuthorizationFromEnvironment(
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+) throws -> JiraAuthorization {
+    guard let email = environment["JIRA_EMAIL"], !email.isEmpty else {
+        throw JiraToolsError("Missing JIRA_EMAIL environment variable")
+    }
+
+    guard let token = environment["JIRA_API_TOKEN"], !token.isEmpty else {
+        throw JiraToolsError("Missing JIRA_API_TOKEN environment variable. An API key can be created at https://id.atlassian.com/manage-profile/security/api-tokens.")
+    }
+
+    return .apiToken(email: email, token: token)
 }

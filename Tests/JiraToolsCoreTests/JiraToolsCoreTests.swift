@@ -26,4 +26,16 @@ struct JiraToolsCoreTests {
 
         #expect(location.jql == "filter = 12345")
     }
+
+    @Test
+    func jiraURLAddsHTTPSWhenTheSchemeIsOmitted() {
+        #expect(jiraURL(from: "example.atlassian.net") == URL(string: "https://example.atlassian.net"))
+    }
+
+    @Test
+    func jiraToolsErrorHasAUserFacingDescription() {
+        let error = JiraToolsError("The Jira token was rejected.")
+
+        #expect(error.localizedDescription == "The Jira token was rejected.")
+    }
 }

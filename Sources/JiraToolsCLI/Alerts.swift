@@ -1,6 +1,7 @@
 import ArgumentParser
 import Foundation
 import JiraToolsCore
+import JiraToolsStaleTickets
 
 enum AlertMode: String, ExpressibleByArgument, Sendable {
     case notification
@@ -9,7 +10,7 @@ enum AlertMode: String, ExpressibleByArgument, Sendable {
     case none
 }
 
-func sendAlert(for reports: [TicketReport], mode: AlertMode) {
+func sendAlert(for reports: [StaleTicketsReport], mode: AlertMode) {
     guard mode != .none else {
         return
     }

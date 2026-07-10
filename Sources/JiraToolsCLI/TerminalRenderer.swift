@@ -1,10 +1,11 @@
 import Darwin
 import Foundation
 import JiraToolsCore
+import JiraToolsStaleTickets
 
 struct RendererConfiguration {
     let location: ResolvedJiraLocation
-    let tickets: TicketsConfiguration
+    let tickets: StaleTicketsConfiguration
     let watch: Bool
     let intervalSeconds: TimeInterval
     let noColor: Bool
@@ -53,7 +54,7 @@ struct TerminalRenderer {
     }
 
     func render(
-        _ snapshot: RefreshSnapshot,
+        _ snapshot: StaleTicketsSnapshot,
         pagination: PaginationState,
         replacingPreviousOutput: Bool = false,
     ) {
@@ -84,7 +85,7 @@ struct TerminalRenderer {
         writeToStandardOutput("\u{001B}[0m\u{001B}[?25h")
     }
 
-    private func renderHeader(_ snapshot: RefreshSnapshot) -> String {
+    private func renderHeader(_ snapshot: StaleTicketsSnapshot) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
@@ -134,10 +135,10 @@ struct TerminalRenderer {
     }
 
     private func renderReports(
-        _ reports: [TicketReport],
+        _ reports: [StaleTicketsReport],
         extraFields: [JiraField],
         pagination: PaginationState,
-        status: RefreshStatus,
+        status: StaleTicketsRefreshStatus,
         updatedAt: Date,
     ) -> String {
         let paginatedReports = Array(reports[pagination.range(totalItems: reports.count)])
@@ -201,7 +202,7 @@ struct TerminalRenderer {
         return lines.joined(separator: "\n") + "\n"
     }
 
-    private func emptyMessage(for status: RefreshStatus) -> String {
+    private func emptyMessage(for status: StaleTicketsRefreshStatus) -> String {
         switch status {
         case .queryingFilter:
             "Querying filter..."
@@ -246,7 +247,7 @@ struct TerminalRenderer {
     private func formattedReportRow(
         _ values: [String],
         widths: [Int],
-        report: TicketReport,
+        report: StaleTicketsReport,
         extraFieldCount: Int,
     ) -> String {
         let currentUserColumnIndex = 4 + extraFieldCount
@@ -309,7 +310,7 @@ struct TerminalRenderer {
 
     private func formatCommentAge(
         _ date: Date?,
-        report: TicketReport,
+        report: StaleTicketsReport,
         now: Date,
         missing: String = "never",
     ) -> String {
@@ -321,7 +322,7 @@ struct TerminalRenderer {
     }
 
     private func statusText(
-        _ status: RefreshStatus,
+        _ status: StaleTicketsRefreshStatus,
         updatedAt: Date,
     ) -> String {
         switch status {

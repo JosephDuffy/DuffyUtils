@@ -12,6 +12,22 @@ let package = Package(
             name: "JiraToolsCore",
             targets: ["JiraToolsCore"],
         ),
+        .library(
+            name: "JiraToolsStaleTickets",
+            targets: ["JiraToolsStaleTickets"],
+        ),
+        .library(
+            name: "JiraToolsAppFoundation",
+            targets: ["JiraToolsAppFoundation"],
+        ),
+        .library(
+            name: "JiraToolsStaleTicketsUI",
+            targets: ["JiraToolsStaleTicketsUI"],
+        ),
+        .library(
+            name: "JiraToolsAppUI",
+            targets: ["JiraToolsAppUI"],
+        ),
         .executable(
             name: "jira-tools",
             targets: ["JiraToolsCLI"],
@@ -58,12 +74,36 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 "DuffyUtilsInternals",
                 "JiraToolsCore",
+                "JiraToolsStaleTickets",
             ],
             path: "Sources/JiraToolsCLI",
         ),
         .target(
             name: "JiraToolsCore",
             path: "Sources/JiraToolsCore",
+        ),
+        .target(
+            name: "JiraToolsStaleTickets",
+            dependencies: ["JiraToolsCore"],
+            path: "Sources/JiraToolsStaleTickets",
+        ),
+        .target(
+            name: "JiraToolsAppFoundation",
+            dependencies: ["JiraToolsCore"],
+            path: "Foundation/JiraToolsAppFoundation",
+        ),
+        .target(
+            name: "JiraToolsStaleTicketsUI",
+            dependencies: [
+                "JiraToolsAppFoundation",
+                "JiraToolsCore",
+                "JiraToolsStaleTickets",
+            ],
+            path: "Features/StaleTickets/JiraToolsStaleTicketsUI",
+        ),
+        .target(
+            name: "JiraToolsAppUI",
+            path: "Foundation/JiraToolsAppUI",
         ),
         .executableTarget(
             name: "open-in-jira",
@@ -114,6 +154,14 @@ let package = Package(
         .testTarget(
             name: "JiraToolsCoreTests",
             dependencies: ["JiraToolsCore"],
+        ),
+        .testTarget(
+            name: "JiraToolsStaleTicketsTests",
+            dependencies: ["JiraToolsStaleTickets"],
+        ),
+        .testTarget(
+            name: "JiraToolsAppFoundationTests",
+            dependencies: ["JiraToolsAppFoundation"],
         ),
     ]
 )

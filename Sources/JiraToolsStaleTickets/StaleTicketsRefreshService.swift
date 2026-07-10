@@ -1,16 +1,17 @@
 import Foundation
+import JiraToolsCore
 
-package struct TicketsConfiguration: Sendable {
-    package var warningHours: TimeInterval
-    package var errorHours: TimeInterval
-    package var greenHours: TimeInterval
-    package var maxResults: Int
-    package var extraFields: [String]
-    package var deemphasizedStatuses: [String]
-    package var highlightedCommentSources: Set<HighlightedCommentSource>
-    package var sort: TicketSort
+public struct StaleTicketsConfiguration: Sendable {
+    public var warningHours: TimeInterval
+    public var errorHours: TimeInterval
+    public var greenHours: TimeInterval
+    public var maxResults: Int
+    public var extraFields: [String]
+    public var deemphasizedStatuses: [String]
+    public var highlightedCommentSources: Set<HighlightedCommentSource>
+    public var sort: TicketSort
 
-    package init(
+    public init(
         warningHours: TimeInterval,
         errorHours: TimeInterval,
         greenHours: TimeInterval,
@@ -31,21 +32,21 @@ package struct TicketsConfiguration: Sendable {
     }
 }
 
-package struct RefreshSnapshot: Sendable {
-    package let reports: [TicketReport]
-    package let extraFields: [JiraField]
-    package let currentUserName: String
-    package let updatedAt: Date
-    package let errors: [String]
-    package let status: RefreshStatus
+public struct StaleTicketsSnapshot: Sendable {
+    public let reports: [StaleTicketsReport]
+    public let extraFields: [JiraField]
+    public let currentUserName: String
+    public let updatedAt: Date
+    public let errors: [String]
+    public let status: StaleTicketsRefreshStatus
 
-    package init(
-        reports: [TicketReport],
+    public init(
+        reports: [StaleTicketsReport],
         extraFields: [JiraField],
         currentUserName: String,
         updatedAt: Date,
         errors: [String],
-        status: RefreshStatus,
+        status: StaleTicketsRefreshStatus,
     ) {
         self.reports = reports
         self.extraFields = extraFields
@@ -55,8 +56,8 @@ package struct RefreshSnapshot: Sendable {
         self.status = status
     }
 
-    package func addingError(_ error: Error) -> RefreshSnapshot {
-        RefreshSnapshot(
+    public func addingError(_ error: Error) -> StaleTicketsSnapshot {
+        StaleTicketsSnapshot(
             reports: reports,
             extraFields: extraFields,
             currentUserName: currentUserName,
@@ -67,49 +68,49 @@ package struct RefreshSnapshot: Sendable {
     }
 }
 
-package enum RefreshStatus: Sendable {
+public enum StaleTicketsRefreshStatus: Sendable {
     case queryingFilter
     case checkingComments(completed: Int, total: Int)
     case complete
     case failed
 }
 
-package struct TicketReport: Sendable {
-    package let issue: JiraIssue
-    package let latestCommentDate: Date?
-    package let latestReplyDate: Date?
-    package let latestCurrentUserCommentDate: Date?
-    package let latestAssigneeCommentDate: Date?
-    package let highlightSeverities: [HighlightedCommentSource: Severity]
-    package let severity: Severity
-    package let isDeemphasized: Bool
-    package let areCommentsLoading: Bool
-    package let error: String?
+public struct StaleTicketsReport: Sendable {
+    public let issue: JiraIssue
+    public let latestCommentDate: Date?
+    public let latestReplyDate: Date?
+    public let latestCurrentUserCommentDate: Date?
+    public let latestAssigneeCommentDate: Date?
+    public let highlightSeverities: [HighlightedCommentSource: Severity]
+    public let severity: Severity
+    public let isDeemphasized: Bool
+    public let areCommentsLoading: Bool
+    public let error: String?
 }
 
-package enum HighlightedCommentSource: String, CaseIterable, Sendable {
+public enum HighlightedCommentSource: String, CaseIterable, Codable, Sendable {
     case currentUser = "current-user"
     case anyUser = "any-user"
     case assignee
 }
 
-package enum TicketSort: String, Sendable {
+public enum TicketSort: String, Codable, Sendable {
     case latestComment = "latest-comment"
     case currentUser = "current-user"
     case assignee
 }
 
-package struct TicketState: Equatable, Sendable {
-    package let severity: Severity
-    package let latestCurrentUserCommentDate: Date?
-    package let latestAssigneeCommentDate: Date?
-    package let latestCommentDate: Date?
-    package let latestReplyDate: Date?
-    package let highlightSeverities: [HighlightedCommentSource: Severity]
-    package let areCommentsLoading: Bool
-    package let error: String?
+public struct StaleTicketState: Equatable, Sendable {
+    public let severity: Severity
+    public let latestCurrentUserCommentDate: Date?
+    public let latestAssigneeCommentDate: Date?
+    public let latestCommentDate: Date?
+    public let latestReplyDate: Date?
+    public let highlightSeverities: [HighlightedCommentSource: Severity]
+    public let areCommentsLoading: Bool
+    public let error: String?
 
-    package init(report: TicketReport) {
+    public init(report: StaleTicketsReport) {
         severity = report.severity
         latestCurrentUserCommentDate = report.latestCurrentUserCommentDate
         latestAssigneeCommentDate = report.latestAssigneeCommentDate
@@ -121,43 +122,78 @@ package struct TicketState: Equatable, Sendable {
     }
 }
 
-package struct TicketRefreshService: Sendable {
-    package let credentials: JiraCredentials
-    package let location: ResolvedJiraLocation
-    package let configuration: TicketsConfiguration
+public struct StaleTicketsRequest: Sendable {
+    public let authorization: JiraAuthorization
+    public let location: ResolvedJiraLocation
+    public let configuration: StaleTicketsConfiguration
 
-    package init(
-        credentials: JiraCredentials,
+    public init(
+        authorization: JiraAuthorization,
         location: ResolvedJiraLocation,
-        configuration: TicketsConfiguration,
+        configuration: StaleTicketsConfiguration,
     ) {
-        self.credentials = credentials
+        self.authorization = authorization
         self.location = location
         self.configuration = configuration
     }
+}
 
-    package func refresh(progress: ((RefreshSnapshot) -> Void)? = nil) async throws -> RefreshSnapshot {
+public struct StaleTicketsRefreshService: Sendable {
+    public let request: StaleTicketsRequest
+    private let now: @Sendable () -> Date
+    private let session: URLSession
+
+    public init(
+        request: StaleTicketsRequest,
+        now: @escaping @Sendable () -> Date = { Date() },
+        session: URLSession = .shared,
+    ) {
+        self.request = request
+        self.now = now
+        self.session = session
+    }
+
+    public func refresh() -> AsyncThrowingStream<StaleTicketsSnapshot, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    _ = try await refresh { snapshot in
+                        continuation.yield(snapshot)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func refresh(
+        progress: @escaping (StaleTicketsSnapshot) -> Void = { _ in },
+    ) async throws -> StaleTicketsSnapshot {
         var errors: [String] = []
-        progress?(RefreshSnapshot(
+        progress(StaleTicketsSnapshot(
             reports: [],
             extraFields: [],
             currentUserName: "unknown",
-            updatedAt: Date(),
+            updatedAt: now(),
             errors: errors,
             status: .queryingFilter,
         ))
 
         let setupClient = JiraClient(
-            baseURL: location.baseURL,
-            credentials: credentials,
+            baseURL: request.location.baseURL,
+            authorization: request.authorization,
             extraFieldIDs: [],
+            session: session,
         )
         let currentUser = try await setupClient.currentUser()
         let extraFields: [JiraField]
 
         do {
             extraFields = try await resolveJiraFields(
-                configuration.extraFields,
+                request.configuration.extraFields,
                 client: setupClient,
             )
         } catch {
@@ -166,9 +202,10 @@ package struct TicketRefreshService: Sendable {
         }
 
         let client = JiraClient(
-            baseURL: location.baseURL,
-            credentials: credentials,
+            baseURL: request.location.baseURL,
+            authorization: request.authorization,
             extraFieldIDs: extraFields.map(\.id),
+            session: session,
         )
         var fields = [
             "summary",
@@ -178,8 +215,8 @@ package struct TicketRefreshService: Sendable {
         fields.append(contentsOf: extraFields.map(\.id))
 
         let issues = try await client.searchIssues(
-            jql: location.jql,
-            maxResults: configuration.maxResults,
+            jql: request.location.jql,
+            maxResults: request.configuration.maxResults,
             fields: fields,
         )
         var reportsByKey = Dictionary(
@@ -189,7 +226,7 @@ package struct TicketRefreshService: Sendable {
         )
         let extraFieldIDs = extraFields.map(\.id)
 
-        progress?(snapshot(
+        progress(snapshot(
             reports: Array(reportsByKey.values),
             extraFields: extraFields,
             currentUserName: currentUser.displayName ?? currentUser.accountId,
@@ -197,24 +234,26 @@ package struct TicketRefreshService: Sendable {
             status: .checkingComments(completed: 0, total: issues.count),
         ))
 
-        await withTaskGroup(of: TicketReport.self) { group in
+        await withTaskGroup(of: StaleTicketsReport.self) { group in
             for issue in issues {
-                let location = location
-                let credentials = credentials
-                let configuration = configuration
+                let request = request
                 let currentUserAccountId = currentUser.accountId
+                let session = session
+                let now = now
 
                 group.addTask {
                     let client = JiraClient(
-                        baseURL: location.baseURL,
-                        credentials: credentials,
+                        baseURL: request.location.baseURL,
+                        authorization: request.authorization,
                         extraFieldIDs: extraFieldIDs,
+                        session: session,
                     )
                     return await Self.report(
                         for: issue,
                         client: client,
                         currentUserAccountId: currentUserAccountId,
-                        configuration: configuration,
+                        configuration: request.configuration,
+                        now: now(),
                     )
                 }
             }
@@ -223,7 +262,7 @@ package struct TicketRefreshService: Sendable {
             for await report in group {
                 completed += 1
                 reportsByKey[report.issue.key] = report
-                progress?(snapshot(
+                progress(snapshot(
                     reports: Array(reportsByKey.values),
                     extraFields: extraFields,
                     currentUserName: currentUser.displayName ?? currentUser.accountId,
@@ -243,24 +282,24 @@ package struct TicketRefreshService: Sendable {
     }
 
     private func snapshot(
-        reports: [TicketReport],
+        reports: [StaleTicketsReport],
         extraFields: [JiraField],
         currentUserName: String,
         errors: [String],
-        status: RefreshStatus,
-    ) -> RefreshSnapshot {
-        RefreshSnapshot(
+        status: StaleTicketsRefreshStatus,
+    ) -> StaleTicketsSnapshot {
+        StaleTicketsSnapshot(
             reports: sortedReports(reports),
             extraFields: extraFields,
             currentUserName: currentUserName,
-            updatedAt: Date(),
+            updatedAt: now(),
             errors: errors,
             status: status,
         )
     }
 
-    private func loadingReport(for issue: JiraIssue) -> TicketReport {
-        TicketReport(
+    private func loadingReport(for issue: JiraIssue) -> StaleTicketsReport {
+        StaleTicketsReport(
             issue: issue,
             latestCommentDate: nil,
             latestReplyDate: nil,
@@ -270,7 +309,7 @@ package struct TicketRefreshService: Sendable {
             severity: .neutral,
             isDeemphasized: isDeemphasizedStatus(
                 issue.fields.status.name,
-                statuses: configuration.deemphasizedStatuses,
+                statuses: request.configuration.deemphasizedStatuses,
             ),
             areCommentsLoading: true,
             error: nil,
@@ -281,8 +320,9 @@ package struct TicketRefreshService: Sendable {
         for issue: JiraIssue,
         client: JiraClient,
         currentUserAccountId: String,
-        configuration: TicketsConfiguration,
-    ) async -> TicketReport {
+        configuration: StaleTicketsConfiguration,
+        now: Date,
+    ) async -> StaleTicketsReport {
         do {
             let comments = try await client.comments(for: issue.key)
             return report(
@@ -291,6 +331,7 @@ package struct TicketRefreshService: Sendable {
                 currentUserAccountId: currentUserAccountId,
                 configuration: configuration,
                 error: nil,
+                now: now,
             )
         } catch {
             return report(
@@ -299,6 +340,7 @@ package struct TicketRefreshService: Sendable {
                 currentUserAccountId: currentUserAccountId,
                 configuration: configuration,
                 error: String(describing: error),
+                now: now,
             )
         }
     }
@@ -307,9 +349,10 @@ package struct TicketRefreshService: Sendable {
         for issue: JiraIssue,
         comments: [JiraComment],
         currentUserAccountId: String,
-        configuration: TicketsConfiguration,
+        configuration: StaleTicketsConfiguration,
         error: String?,
-    ) -> TicketReport {
+        now: Date,
+    ) -> StaleTicketsReport {
         let topLevelComments = comments.filter { !$0.isReply }
         let replies = comments.filter(\.isReply)
         let latestTopLevelCommentDate = topLevelComments.compactMap { parseJiraDate($0.created) }.max()
@@ -334,11 +377,11 @@ package struct TicketRefreshService: Sendable {
                     latestAssigneeCommentDate
                 }
 
-                return (source, severity(for: commentDate, configuration: configuration))
+                return (source, severity(for: commentDate, configuration: configuration, now: now))
             },
         )
 
-        return TicketReport(
+        return StaleTicketsReport(
             issue: issue,
             latestCommentDate: latestTopLevelCommentDate,
             latestReplyDate: latestReplyDate,
@@ -355,7 +398,7 @@ package struct TicketRefreshService: Sendable {
         )
     }
 
-    private func sortedReports(_ reports: [TicketReport]) -> [TicketReport] {
+    private func sortedReports(_ reports: [StaleTicketsReport]) -> [StaleTicketsReport] {
         reports.sorted {
             switch (sortDate(for: $0), sortDate(for: $1)) {
             case let (lhs?, rhs?):
@@ -370,8 +413,8 @@ package struct TicketRefreshService: Sendable {
         }
     }
 
-    private func sortDate(for report: TicketReport) -> Date? {
-        switch configuration.sort {
+    private func sortDate(for report: StaleTicketsReport) -> Date? {
+        switch request.configuration.sort {
         case .latestComment:
             report.latestCommentDate
         case .currentUser:
@@ -382,7 +425,7 @@ package struct TicketRefreshService: Sendable {
     }
 }
 
-package func resolveJiraFields(
+public func resolveJiraFields(
     _ configuredFields: [String],
     client: JiraClient,
 ) async throws -> [JiraField] {
@@ -408,11 +451,11 @@ package func resolveJiraFields(
             return caseInsensitiveNameMatch
         }
 
-        throw AppError("Could not find Jira field named '\(configuredField)'. Pass a customfield_XXXXX id if the field has a different name.")
+        throw JiraToolsError("Could not find Jira field named '\(configuredField)'. Pass a customfield_XXXXX id if the field has a different name.")
     }
 }
 
-package func latestCommentDate(
+func latestCommentDate(
     in comments: [JiraComment],
     by accountId: String?,
 ) -> Date? {
@@ -426,15 +469,16 @@ package func latestCommentDate(
         .max()
 }
 
-package func severity(
+public func severity(
     for latestCommentDate: Date?,
-    configuration: TicketsConfiguration,
+    configuration: StaleTicketsConfiguration,
+    now: Date,
 ) -> Severity {
     guard let latestCommentDate else {
         return .error
     }
 
-    let ageHours = Date().timeIntervalSince(latestCommentDate) / 3600
+    let ageHours = now.timeIntervalSince(latestCommentDate) / 3600
     if ageHours >= configuration.errorHours {
         return .error
     }
@@ -450,7 +494,7 @@ package func severity(
     return .neutral
 }
 
-package func isDeemphasizedStatus(
+public func isDeemphasizedStatus(
     _ status: String,
     statuses: [String],
 ) -> Bool {

@@ -1,18 +1,37 @@
-import JiraToolsCore
 import SwiftUI
+
+enum JiraToolsWindow {
+    static let credentials = "jira-credentials"
+}
 
 @main
 struct JiraToolsApp: App {
+    @Environment(\.openWindow) private var openWindow
+    @StateObject private var coordinator = JiraToolsAppCoordinator()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            JiraToolsRootView()
+                .environmentObject(coordinator)
+                .task {
+                    if coordinator.shouldOpenCredentialsWindow {
+                        openWindow(id: JiraToolsWindow.credentials)
+                    }
+                }
         }
-    }
-}
+        .commands {
+            CommandGroup(after: .windowArrangement) {
+                Button("Jira Credentials…") {
+                    openWindow(id: JiraToolsWindow.credentials)
+                }
+                .keyboardShortcut(",", modifiers: [.command, .option])
+            }
+        }
 
-private struct ContentView: View {
-    var body: some View {
-        Text("Hello, Jira Tools!")
-            .frame(minWidth: 320, minHeight: 180)
+        Window("Jira Credentials", id: JiraToolsWindow.credentials) {
+            JiraCredentialsView()
+                .environmentObject(coordinator)
+        }
+        .defaultSize(width: 480, height: 340)
     }
 }

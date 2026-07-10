@@ -1,6 +1,6 @@
 import Foundation
 
-package let jiraDateFormatters: [DateFormatter] = {
+private let jiraDateFormatters: [DateFormatter] = {
     let formats = [
         "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
         "yyyy-MM-dd'T'HH:mm:ssZ",
@@ -14,7 +14,7 @@ package let jiraDateFormatters: [DateFormatter] = {
     }
 }()
 
-package func parseJiraDate(_ rawDate: String) -> Date? {
+public func parseJiraDate(_ rawDate: String) -> Date? {
     for formatter in jiraDateFormatters {
         if let date = formatter.date(from: rawDate) {
             return date
@@ -23,7 +23,7 @@ package func parseJiraDate(_ rawDate: String) -> Date? {
     return nil
 }
 
-package func formatAge(
+public func formatAge(
     _ date: Date?,
     now: Date = Date(),
     missing: String = "never",
@@ -44,11 +44,11 @@ package func formatAge(
     return "\(String(format: "%.1f", hours / 24))d ago"
 }
 
-package func formatHours(_ hours: TimeInterval) -> String {
+public func formatHours(_ hours: TimeInterval) -> String {
     String(format: "%.1f", hours)
 }
 
-package func formatDuration(_ seconds: TimeInterval) -> String {
+public func formatDuration(_ seconds: TimeInterval) -> String {
     if seconds < 60 {
         return "\(Int(seconds))s"
     }
