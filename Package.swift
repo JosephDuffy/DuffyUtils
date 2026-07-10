@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "DuffyUtils",
     platforms: [
-        .macOS(.v15),
+        .macOS(.v13),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.6.2"),
@@ -15,6 +15,13 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "install",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Subprocess", package: "swift-subprocess"),
+            ]
+        ),
+        .executableTarget(
+            name: "export-signed-command",
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Subprocess", package: "swift-subprocess"),

@@ -94,6 +94,24 @@ git remove-current-worktree-and-branch
 
 and the current workrtree and branch will be removed. There are some checks for things like uncommitted changes, but remember this is destructive :)
 
+## `export-signed-command`
+
+This builds one of the other local executable products in release mode, signs it with a Developer ID Application identity, zips it, and submits the zip to Apple's notarisation service:
+
+```bash
+xcrun notarytool store-credentials duffyutils
+
+swift run export-signed-command open-in-jira \
+    --signing-identity "Developer ID Application: Your Name (TEAMID)" \
+    --notary-profile duffyutils
+```
+
+The generated `.zip` file contains a universal macOS 13+ binary and its required Swift runtime
+libraries. After unzipping, keep the directory intact and add it to `PATH` before running the
+command.
+The signing identity must be a `Developer ID Application` certificate; `Apple Development` and
+`Apple Distribution` certificates cannot be used for notarised command-line tools.
+
 ## Installation
 
 If you don't have Swift installed, first [install Swift](https://www.swift.org/install/). <sup>[Why Swift?](#why-swift)</sup>
