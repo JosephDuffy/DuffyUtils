@@ -9,6 +9,7 @@ public enum StaleTicketsQueryMode: String, CaseIterable, Codable, Sendable {
 }
 
 public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
+    public var displayName: String
     public var filterInput: String
     public var queryMode: StaleTicketsQueryMode
     public var baseURL: String
@@ -25,6 +26,7 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
     public var alertMode: JiraToolsAlertMode
 
     public init(
+        displayName: String = "Stale Tickets",
         filterInput: String,
         queryMode: StaleTicketsQueryMode,
         baseURL: String,
@@ -40,6 +42,7 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
         alertSeverities: Set<Severity>,
         alertMode: JiraToolsAlertMode,
     ) {
+        self.displayName = displayName
         self.filterInput = filterInput
         self.queryMode = queryMode
         self.baseURL = baseURL
@@ -58,12 +61,14 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
 
     public init(
         configuration: StaleTicketsConfiguration,
+        displayName: String = "Stale Tickets",
         filterInput: String,
         queryMode: StaleTicketsQueryMode,
         baseURL: String,
         refreshInterval: TimeInterval,
     ) {
         self.init(
+            displayName: displayName,
             filterInput: filterInput,
             queryMode: queryMode,
             baseURL: baseURL,
@@ -82,6 +87,10 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
     }
 
     public func validatedConfiguration() throws -> StaleTicketsConfiguration {
+        guard !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw StaleTicketsConfigurationValidationError.missingDisplayName
+        }
+
         guard maxResults > 0 else {
             throw StaleTicketsConfigurationValidationError.nonPositiveResultLimit
         }
@@ -143,6 +152,7 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
 }
 
 public enum StaleTicketsConfigurationValidationError: LocalizedError, Equatable, Sendable {
+    case missingDisplayName
     case invalidBaseURL
     case invalidFilterURL
     case missingFilter
@@ -153,6 +163,8 @@ public enum StaleTicketsConfigurationValidationError: LocalizedError, Equatable,
 
     public var errorDescription: String? {
         switch self {
+        case .missingDisplayName:
+            "Enter a name for this tool."
         case .invalidBaseURL:
             "Enter a valid Jira site URL."
         case .invalidFilterURL:

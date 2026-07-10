@@ -28,6 +28,10 @@ public final class CodablePreferencesStore<Value: Codable> {
         }
     }
 
+    public var hasSavedValue: Bool {
+        defaults.data(forKey: key) != nil
+    }
+
     public func save(_ value: Value) throws {
         let data = try JSONEncoder().encode(value)
         defaults.set(data, forKey: key)

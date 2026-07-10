@@ -20,6 +20,12 @@ struct JiraToolsApp: App {
                 }
         }
         .commands {
+            CommandGroup(after: .newItem) {
+                Button("New Tool…") {
+                    coordinator.presentNewTool()
+                }
+            }
+
             CommandGroup(after: .windowArrangement) {
                 Button("Jira Credentials…") {
                     openWindow(id: JiraToolsWindow.credentials)

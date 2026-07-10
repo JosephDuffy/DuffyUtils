@@ -53,5 +53,31 @@ struct CodablePreferencesStoreTests {
         )
 
         #expect(store.value == expected)
+        #expect(!store.hasSavedValue)
+    }
+
+    @Test
+    @MainActor
+    func tracksWhetherAValueHasBeenSaved() throws {
+        let suiteName = "JiraToolsAppFoundationTests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Unable to create isolated UserDefaults suite")
+            return
+        }
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        let store = CodablePreferencesStore(
+            defaults: defaults,
+            key: "value",
+            defaultValue: JiraAccountPreferences(),
+        )
+
+        #expect(!store.hasSavedValue)
+        try store.save(JiraAccountPreferences())
+        #expect(store.hasSavedValue)
+        store.remove()
+        #expect(!store.hasSavedValue)
     }
 }

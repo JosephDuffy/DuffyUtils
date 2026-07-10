@@ -11,6 +11,10 @@ struct StaleTicketsConfigurationSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
+                Section("Tool") {
+                    TextField("Name", text: $draft.displayName)
+                }
+
                 Section("Jira Query") {
                     TextField("Jira site URL", text: $draft.baseURL, prompt: Text("example.atlassian.net"))
                         .onSubmit {

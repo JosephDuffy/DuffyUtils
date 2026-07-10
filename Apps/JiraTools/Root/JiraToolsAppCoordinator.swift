@@ -1,23 +1,32 @@
 import Combine
 import Foundation
 import JiraToolsAppFoundation
+import JiraToolsAppUI
 import JiraToolsCore
 import JiraToolsStaleTickets
 import JiraToolsStaleTicketsUI
 
 @MainActor
 final class JiraToolsAppCoordinator: ObservableObject {
-    @Published private(set) var staleTicketsViewModel: StaleTicketsViewModel?
+    @Published var isNewToolPresented = false
+    @Published var selectedToolID: UUID?
+    @Published private(set) var toolInstances: [JiraToolInstance] = []
 
     private let accountStore = JiraAccountStore()
     private let alertService = SystemAlertService()
-    private let preferencesStore = CodablePreferencesStore(
+    private let legacyStaleTicketsPreferencesStore = CodablePreferencesStore(
         key: "com.josephduffy.JiraTools.stale-tickets-preferences",
         defaultValue: StaleTicketsPreferences(),
     )
+    private let toolInstancesPreferencesStore = CodablePreferencesStore(
+        key: "com.josephduffy.JiraTools.tool-instances-preferences",
+        defaultValue: JiraToolInstancesPreferences(),
+    )
+    private var staleTicketsViewModels: [JiraToolInstance.ID: StaleTicketsViewModel] = [:]
 
     init() {
-        rebuildStaleTicketsViewModel()
+        loadToolInstances()
+        rebuildStaleTicketsViewModels()
     }
 
     var hasCredentials: Bool {
@@ -26,6 +35,57 @@ final class JiraToolsAppCoordinator: ObservableObject {
 
     var shouldOpenCredentialsWindow: Bool {
         !hasCredentials
+    }
+
+    var sidebarItems: [JiraToolsSidebarItem] {
+        toolInstances.map { instance in
+            JiraToolsSidebarItem(
+                id: instance.id,
+                title: instance.staleTicketsPreferences.displayName,
+                systemImage: instance.tool.systemImage,
+            )
+        }
+    }
+
+    func tool(for id: JiraToolInstance.ID) -> JiraToolInstance? {
+        toolInstances.first { $0.id == id }
+    }
+
+    func staleTicketsViewModel(for id: JiraToolInstance.ID) -> StaleTicketsViewModel? {
+        staleTicketsViewModels[id]
+    }
+
+    func presentNewTool() {
+        isNewToolPresented = true
+    }
+
+    func addTool(_ tool: JiraToolIdentifier) {
+        var preferences = StaleTicketsPreferences()
+        preferences.displayName = tool.defaultDisplayName
+
+        let instance = JiraToolInstance(
+            tool: tool,
+            staleTicketsPreferences: preferences,
+        )
+        toolInstances.append(instance)
+        selectedToolID = instance.id
+        try? saveToolInstances()
+        rebuildStaleTicketsViewModel(for: instance)
+        staleTicketsViewModels[instance.id]?.isConfigurationPresented = true
+    }
+
+    func removeSelectedTool() {
+        guard let selectedToolID,
+              let index = toolInstances.firstIndex(where: { $0.id == selectedToolID }) else {
+            return
+        }
+
+        staleTicketsViewModels[selectedToolID] = nil
+        toolInstances.remove(at: index)
+        self.selectedToolID = toolInstances.indices.contains(index)
+            ? toolInstances[index].id
+            : toolInstances.last?.id
+        try? saveToolInstances()
     }
 
     func saveCredentials(
@@ -42,7 +102,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
             authorizationKind: .apiToken(email: email),
         )
         try accountStore.save(account: account, apiToken: token)
-        rebuildStaleTicketsViewModel()
+        rebuildStaleTicketsViewModels()
     }
 
     func verifyCredentials(
@@ -64,18 +124,49 @@ final class JiraToolsAppCoordinator: ObservableObject {
 
     func removeCredentials() throws {
         try accountStore.removeActiveAccount()
-        staleTicketsViewModel = nil
+        staleTicketsViewModels = [:]
     }
 
-    private func rebuildStaleTicketsViewModel() {
-        guard let account = accountStore.activeAccount else {
-            staleTicketsViewModel = nil
+    private func loadToolInstances() {
+        var preferences = toolInstancesPreferencesStore.value
+        if !preferences.hasMigratedLegacyPreferences {
+            if legacyStaleTicketsPreferencesStore.hasSavedValue {
+                preferences.instances = [JiraToolInstance(
+                    tool: .staleTickets,
+                    staleTicketsPreferences: legacyStaleTicketsPreferencesStore.value,
+                )]
+            }
+            preferences.hasMigratedLegacyPreferences = true
+            try? toolInstancesPreferencesStore.save(preferences)
+        }
+
+        toolInstances = preferences.instances
+        selectedToolID = toolInstances.first?.id
+        isNewToolPresented = toolInstances.isEmpty
+    }
+
+    private func rebuildStaleTicketsViewModels() {
+        staleTicketsViewModels = [:]
+
+        guard accountStore.activeAccount != nil else {
             return
         }
 
-        let preferences = preferencesStore.value
+        for instance in toolInstances {
+            rebuildStaleTicketsViewModel(for: instance)
+        }
+    }
+
+    private func rebuildStaleTicketsViewModel(for instance: JiraToolInstance) {
+        guard instance.tool == .staleTickets,
+              let account = accountStore.activeAccount else {
+            return
+        }
+
+        let preferences = instance.staleTicketsPreferences
         let configurationDraft = StaleTicketsConfigurationDraft(
             configuration: preferences.configuration,
+            displayName: preferences.displayName,
             filterInput: preferences.filterInput,
             queryMode: preferences.queryMode,
             baseURL: account.siteURL.absoluteString,
@@ -97,187 +188,101 @@ final class JiraToolsAppCoordinator: ObservableObject {
             alertMode: preferences.alertMode,
             tableSort: preferences.tableSort,
             saveConfiguration: { [weak self] draft, configuration in
-            guard let self else {
-                throw CancellationError()
-            }
-            let location = try draft.resolvedLocation()
-            let existingPreferences = self.preferencesStore.value
-            try self.preferencesStore.save(StaleTicketsPreferences(
-                filterInput: draft.filterInput,
-                queryMode: draft.queryMode,
-                refreshInterval: draft.refreshInterval,
-                isConfigured: true,
-                isWatching: existingPreferences.isWatching,
-                alertSeverities: draft.alertSeverities,
-                alertMode: draft.alertMode,
-                tableSort: existingPreferences.tableSort,
-                configuration: configuration,
-            ))
-            return StaleTicketsRequest(
-                authorization: .oauth(accessToken: ""),
-                location: location,
-                configuration: configuration,
-            )
-        },
-            authorizationProvider: { [weak self] in
-            guard let self,
-                  let authorization = try self.accountStore.authorization() else {
-                throw JiraToolsError("Add Jira credentials before refreshing tickets.")
-            }
-            return authorization
-        },
-            watchingDidChange: { [weak self] isWatching in
-            guard let self else {
-                return
-            }
-            var preferences = self.preferencesStore.value
-            preferences.isWatching = isWatching
-            try? self.preferencesStore.save(preferences)
-            if isWatching {
-                Task {
-                    _ = try? await self.alertService.requestAuthorization()
+                guard let self else {
+                    throw CancellationError()
                 }
-            }
-        },
+
+                let location = try draft.resolvedLocation()
+                try self.updateStaleTicketsPreferences(for: instance.id) { preferences in
+                    preferences.displayName = draft.displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+                    preferences.filterInput = draft.filterInput
+                    preferences.queryMode = draft.queryMode
+                    preferences.refreshInterval = draft.refreshInterval
+                    preferences.isConfigured = true
+                    preferences.alertSeverities = draft.alertSeverities
+                    preferences.alertMode = draft.alertMode
+                    preferences.configuration = configuration
+                }
+                return StaleTicketsRequest(
+                    authorization: .oauth(accessToken: ""),
+                    location: location,
+                    configuration: configuration,
+                )
+            },
+            authorizationProvider: { [weak self] in
+                guard let self,
+                      let authorization = try self.accountStore.authorization() else {
+                    throw JiraToolsError("Add Jira credentials before refreshing tickets.")
+                }
+                return authorization
+            },
+            watchingDidChange: { [weak self] isWatching in
+                guard let self else {
+                    return
+                }
+
+                try? self.updateStaleTicketsPreferences(for: instance.id) { preferences in
+                    preferences.isWatching = isWatching
+                }
+                if isWatching {
+                    Task {
+                        _ = try? await self.alertService.requestAuthorization()
+                    }
+                }
+            },
             deliverAlert: { [weak self] reports, severities, mode in
-            guard let self, mode != .none else {
-                return
-            }
-            let attentionReports = reports.filter { severities.contains($0.severity) }
-            guard !attentionReports.isEmpty else {
-                return
-            }
-            let keys = attentionReports.map(\.issue.key).joined(separator: ", ")
-            let worst = attentionReports.map(\.severity).min() ?? .warning
-            try? await self.alertService.deliver(
-                JiraToolsAlert(
-                    title: "Jira tickets need attention",
-                    body: "\(attentionReports.count) ticket(s): \(keys) (\(worst.label))",
-                ),
-                mode: mode,
-            )
-        },
+                guard let self, mode != .none else {
+                    return
+                }
+
+                let attentionReports = reports.filter { severities.contains($0.severity) }
+                guard !attentionReports.isEmpty else {
+                    return
+                }
+
+                let keys = attentionReports.map(\.issue.key).joined(separator: ", ")
+                let worst = attentionReports.map(\.severity).min() ?? .warning
+                try? await self.alertService.deliver(
+                    JiraToolsAlert(
+                        title: "Jira tickets need attention",
+                        body: "\(attentionReports.count) ticket(s): \(keys) (\(worst.label))",
+                    ),
+                    mode: mode,
+                )
+            },
             sortDidChange: { [weak self] tableSort in
-            guard let self else {
-                return
-            }
-            var preferences = self.preferencesStore.value
-            preferences.tableSort = tableSort
-            try? self.preferencesStore.save(preferences)
-        },
+                guard let self else {
+                    return
+                }
+
+                try? self.updateStaleTicketsPreferences(for: instance.id) { preferences in
+                    preferences.tableSort = tableSort
+                }
+            },
         )
         viewModel.isConfigurationPresented = !preferences.isConfigured
         viewModel.isWatching = preferences.isConfigured && preferences.isWatching
-        staleTicketsViewModel = viewModel
-    }
-}
-
-private struct StaleTicketsPreferences: Codable {
-    var filterInput = ""
-    var queryMode: StaleTicketsQueryMode = .filter
-    var refreshInterval = 60.0
-    var isConfigured = false
-    var isWatching = false
-    var alertSeverities: Set<Severity> = [.warning, .error]
-    var alertMode: JiraToolsAlertMode = .both
-    var tableSort = StaleTicketsTableSort()
-    var configuration = StaleTicketsConfiguration(
-        warningHours: 20 * 3_600,
-        errorHours: 24 * 3_600,
-        greenHours: 4 * 3_600,
-        maxResults: 100,
-        extraFields: [],
-        deemphasizedStatuses: [],
-        highlightedCommentSources: [.assignee],
-        sort: .latestComment,
-    )
-
-    enum CodingKeys: String, CodingKey {
-        case filterInput
-        case queryMode
-        case refreshInterval
-        case isConfigured
-        case isWatching
-        case alertSeverities
-        case alertMode
-        case tableSort
-        case warningHours
-        case errorHours
-        case greenHours
-        case maxResults
-        case extraFields
-        case deemphasizedStatuses
-        case highlightedCommentSources
-        case sort
+        staleTicketsViewModels[instance.id] = viewModel
     }
 
-    init() {}
+    private func updateStaleTicketsPreferences(
+        for id: JiraToolInstance.ID,
+        _ update: (inout StaleTicketsPreferences) -> Void,
+    ) throws {
+        guard let index = toolInstances.firstIndex(where: { $0.id == id }) else {
+            throw JiraToolsError("This tool was removed.")
+        }
 
-    init(
-        filterInput: String,
-        queryMode: StaleTicketsQueryMode,
-        refreshInterval: TimeInterval,
-        isConfigured: Bool,
-        isWatching: Bool,
-        alertSeverities: Set<Severity>,
-        alertMode: JiraToolsAlertMode,
-        tableSort: StaleTicketsTableSort,
-        configuration: StaleTicketsConfiguration,
-    ) {
-        self.filterInput = filterInput
-        self.queryMode = queryMode
-        self.refreshInterval = refreshInterval
-        self.isConfigured = isConfigured
-        self.isWatching = isWatching
-        self.alertSeverities = alertSeverities
-        self.alertMode = alertMode
-        self.tableSort = tableSort
-        self.configuration = configuration
+        var instance = toolInstances[index]
+        update(&instance.staleTicketsPreferences)
+        toolInstances[index] = instance
+        try saveToolInstances()
     }
 
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        filterInput = try container.decodeIfPresent(String.self, forKey: .filterInput) ?? ""
-        queryMode = try container.decodeIfPresent(StaleTicketsQueryMode.self, forKey: .queryMode)
-            ?? (filterInput.contains("://") || filterInput.contains(".atlassian.net") ? .filter : .jql)
-        refreshInterval = try container.decodeIfPresent(TimeInterval.self, forKey: .refreshInterval) ?? 60
-        isConfigured = try container.decodeIfPresent(Bool.self, forKey: .isConfigured)
-            ?? !filterInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        isWatching = try container.decodeIfPresent(Bool.self, forKey: .isWatching) ?? false
-        alertSeverities = try container.decodeIfPresent(Set<Severity>.self, forKey: .alertSeverities) ?? [.warning, .error]
-        alertMode = try container.decodeIfPresent(JiraToolsAlertMode.self, forKey: .alertMode) ?? .both
-        tableSort = try container.decodeIfPresent(StaleTicketsTableSort.self, forKey: .tableSort) ?? StaleTicketsTableSort()
-        configuration = StaleTicketsConfiguration(
-            warningHours: try container.decodeIfPresent(TimeInterval.self, forKey: .warningHours) ?? 20 * 3_600,
-            errorHours: try container.decodeIfPresent(TimeInterval.self, forKey: .errorHours) ?? 24 * 3_600,
-            greenHours: try container.decodeIfPresent(TimeInterval.self, forKey: .greenHours) ?? 4 * 3_600,
-            maxResults: try container.decodeIfPresent(Int.self, forKey: .maxResults) ?? 100,
-            extraFields: try container.decodeIfPresent([String].self, forKey: .extraFields) ?? [],
-            deemphasizedStatuses: try container.decodeIfPresent([String].self, forKey: .deemphasizedStatuses) ?? [],
-            highlightedCommentSources: Set(
-                try container.decodeIfPresent([HighlightedCommentSource].self, forKey: .highlightedCommentSources) ?? [.assignee],
-            ),
-            sort: try container.decodeIfPresent(TicketSort.self, forKey: .sort) ?? .latestComment,
-        )
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(filterInput, forKey: .filterInput)
-        try container.encode(queryMode, forKey: .queryMode)
-        try container.encode(refreshInterval, forKey: .refreshInterval)
-        try container.encode(isConfigured, forKey: .isConfigured)
-        try container.encode(isWatching, forKey: .isWatching)
-        try container.encode(alertSeverities, forKey: .alertSeverities)
-        try container.encode(alertMode, forKey: .alertMode)
-        try container.encode(tableSort, forKey: .tableSort)
-        try container.encode(configuration.warningHours, forKey: .warningHours)
-        try container.encode(configuration.errorHours, forKey: .errorHours)
-        try container.encode(configuration.greenHours, forKey: .greenHours)
-        try container.encode(configuration.maxResults, forKey: .maxResults)
-        try container.encode(configuration.extraFields, forKey: .extraFields)
-        try container.encode(configuration.deemphasizedStatuses, forKey: .deemphasizedStatuses)
-        try container.encode(Array(configuration.highlightedCommentSources), forKey: .highlightedCommentSources)
-        try container.encode(configuration.sort, forKey: .sort)
+    private func saveToolInstances() throws {
+        try toolInstancesPreferencesStore.save(JiraToolInstancesPreferences(
+            hasMigratedLegacyPreferences: true,
+            instances: toolInstances,
+        ))
     }
 }

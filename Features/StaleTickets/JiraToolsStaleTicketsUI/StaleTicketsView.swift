@@ -4,8 +4,13 @@ import SwiftUI
 public struct StaleTicketsView: View {
     @ObservedObject private var viewModel: StaleTicketsViewModel
     @Environment(\.openURL) private var openURL
+    private let title: String
 
-    public init(viewModel: StaleTicketsViewModel) {
+    public init(
+        title: String = "Stale Tickets",
+        viewModel: StaleTicketsViewModel,
+    ) {
+        self.title = title
         self.viewModel = viewModel
     }
 
@@ -38,7 +43,7 @@ public struct StaleTicketsView: View {
                 }
             }
         }
-        .navigationTitle("Stale Tickets")
+        .navigationTitle(title)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: viewModel.refresh) {
