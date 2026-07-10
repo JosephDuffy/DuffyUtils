@@ -157,9 +157,10 @@ public struct StaleTicketsRefreshService: Sendable {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    _ = try await refresh { snapshot in
+                    let snapshot = try await refresh { snapshot in
                         continuation.yield(snapshot)
                     }
+                    continuation.yield(snapshot)
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)

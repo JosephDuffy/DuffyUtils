@@ -85,14 +85,18 @@ public struct StaleTicketsView: View {
     private func results(_ snapshot: StaleTicketsSnapshot) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
+                if let lastLoadedAt = viewModel.lastLoadedAt {
+                    Text("Loaded")
+                    Text(lastLoadedAt, format: .dateTime)
+                        .foregroundStyle(.secondary)
+                }
+
                 if viewModel.isRefreshing {
                     ProgressView()
                         .controlSize(.small)
                     Text(progressDescription(for: snapshot))
-                } else {
-                    Text("Loaded")
                 }
-                
+
                 if !snapshot.errors.isEmpty {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")

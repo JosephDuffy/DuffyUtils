@@ -218,6 +218,7 @@ private extension StaleTicketsTableSortColumn {
 @MainActor
 public final class StaleTicketsViewModel: ObservableObject {
     @Published public private(set) var snapshot: StaleTicketsSnapshot?
+    @Published public private(set) var lastLoadedAt: Date?
     @Published public private(set) var refreshError: String?
     @Published public private(set) var isRefreshing = false
     @Published public private(set) var isConfigured: Bool
@@ -388,6 +389,7 @@ public final class StaleTicketsViewModel: ObservableObject {
         rows = rows.sorted(using: sortOrder)
 
         if case .complete = snapshot.status {
+            lastLoadedAt = snapshot.updatedAt
             isRefreshing = false
             notifyForWatchedChanges(in: snapshot)
         }
