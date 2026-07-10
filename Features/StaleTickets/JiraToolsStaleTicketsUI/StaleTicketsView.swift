@@ -84,28 +84,30 @@ public struct StaleTicketsView: View {
     @ViewBuilder
     private func results(_ snapshot: StaleTicketsSnapshot) -> some View {
         VStack(spacing: 0) {
-            if viewModel.isRefreshing {
-                HStack(spacing: 8) {
+            HStack(spacing: 8) {
+                if viewModel.isRefreshing {
                     ProgressView()
                         .controlSize(.small)
                     Text(progressDescription(for: snapshot))
-                    Spacer()
+                } else {
+                    Text("Loaded")
                 }
-                .padding(8)
-                .background(.bar)
-            }
+                
+                if !snapshot.errors.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(snapshot.errors.joined(separator: "\n"))
+                            .textSelection(.enabled)
+                    }
+                    .padding(.horizontal, 8)
+                    .background(.orange.opacity(0.12))
+                }
 
-            if !snapshot.errors.isEmpty {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(snapshot.errors.joined(separator: "\n"))
-                        .textSelection(.enabled)
-                    Spacer()
-                }
-                .padding(8)
-                .background(.orange.opacity(0.12))
+                Spacer()
             }
+            .background(.bar)
+            .padding(8)
 
             if viewModel.rows.isEmpty, !viewModel.isRefreshing {
                 StaleTicketsEmptyState(
