@@ -70,6 +70,7 @@ public struct JiraToolsAppShell<Detail: View>: View {
 
                     Spacer()
                 }
+                .labelStyle(.iconOnly)
                 .padding(8)
                 .background(.bar)
             }
