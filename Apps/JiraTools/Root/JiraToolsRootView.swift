@@ -5,19 +5,48 @@ import SwiftUI
 struct JiraToolsRootView: View {
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var coordinator: JiraToolsAppCoordinator
+    @State private var hasInitializedUIState = false
+    @State private var isNewToolPresented = false
+    @State private var selectedToolID: JiraToolInstance.ID?
 
     var body: some View {
         JiraToolsAppShell(
             items: coordinator.sidebarItems,
-            selection: $coordinator.selectedToolID,
-            addTool: coordinator.presentNewTool,
-            removeTool: coordinator.removeSelectedTool,
+            selection: $selectedToolID,
+            addTool: {
+                isNewToolPresented = true
+            },
+            removeTool: removeSelectedTool,
         ) { id in
             toolContent(for: id)
         }
         .frame(minWidth: 900, minHeight: 560)
-        .sheet(isPresented: $coordinator.isNewToolPresented) {
-            NewToolView(addTool: coordinator.addTool)
+        .focusedValue(
+            \.jiraToolsNewToolAction,
+            JiraToolsNewToolAction {
+                isNewToolPresented = true
+            },
+        )
+        .onAppear {
+            guard !hasInitializedUIState else {
+                return
+            }
+
+            hasInitializedUIState = true
+            selectedToolID = coordinator.sidebarItems.first?.id
+            isNewToolPresented = coordinator.sidebarItems.isEmpty
+        }
+        .onChange(of: coordinator.sidebarItems) { items in
+            guard let selectedToolID,
+                  items.contains(where: { $0.id == selectedToolID }) else {
+                self.selectedToolID = items.first?.id
+                return
+            }
+        }
+        .sheet(isPresented: $isNewToolPresented) {
+            NewToolView { tool in
+                selectedToolID = coordinator.addTool(tool)
+            }
         }
     }
 
@@ -56,5 +85,13 @@ struct JiraToolsRootView: View {
                 openWindow(id: JiraToolsWindow.credentials)
             }
         }
+    }
+
+    private func removeSelectedTool() {
+        guard let selectedToolID else {
+            return
+        }
+
+        coordinator.removeTool(id: selectedToolID)
     }
 }

@@ -16,6 +16,7 @@
 		A10000000000000000000042 /* JiraCredentialsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000039 /* JiraCredentialsView.swift */; };
 		A10000000000000000000043 /* JiraToolInstance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000045 /* JiraToolInstance.swift */; };
 		A10000000000000000000044 /* NewToolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* NewToolView.swift */; };
+		C0DEC0DE0000000000000001 /* JiraToolsWindowUIState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */; };
 		D93A36943001434B00ED4B8C /* JiraToolsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D93A36933001434B00ED4B8C /* JiraToolsCore */; };
 /* End PBXBuildFile section */
 
@@ -28,6 +29,7 @@
 		A10000000000000000000039 /* JiraCredentialsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraCredentialsView.swift; sourceTree = "<group>"; };
 		A10000000000000000000045 /* JiraToolInstance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolInstance.swift; sourceTree = "<group>"; };
 		A10000000000000000000046 /* NewToolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewToolView.swift; sourceTree = "<group>"; };
+		C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolsWindowUIState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -71,6 +73,7 @@
 				A10000000000000000000037 /* JiraToolsRootView.swift */,
 				A10000000000000000000045 /* JiraToolInstance.swift */,
 				A10000000000000000000046 /* NewToolView.swift */,
+				C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */,
 			);
 			path = Root;
 			sourceTree = "<group>";
@@ -175,6 +178,7 @@
 				A10000000000000000000042 /* JiraCredentialsView.swift in Sources */,
 				A10000000000000000000043 /* JiraToolInstance.swift in Sources */,
 				A10000000000000000000044 /* NewToolView.swift in Sources */,
+				C0DEC0DE0000000000000001 /* JiraToolsWindowUIState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

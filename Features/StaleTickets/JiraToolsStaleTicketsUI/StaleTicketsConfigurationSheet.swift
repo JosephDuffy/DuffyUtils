@@ -5,7 +5,7 @@ import SwiftUI
 
 struct StaleTicketsConfigurationSheet: View {
     @Binding var draft: StaleTicketsConfigurationDraft
-    let onSave: () -> Void
+    let onSave: () -> Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -76,7 +76,9 @@ struct StaleTicketsConfigurationSheet: View {
                     dismiss()
                 }
                 Button("Save") {
-                    onSave()
+                    if onSave() {
+                        dismiss()
+                    }
                 }
                 .keyboardShortcut(.defaultAction)
             }

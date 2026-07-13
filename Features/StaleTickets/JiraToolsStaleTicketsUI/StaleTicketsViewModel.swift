@@ -231,8 +231,7 @@ public final class StaleTicketsViewModel: ObservableObject {
             updateWatchTask()
         }
     }
-    @Published public var isConfigurationPresented = false
-    @Published public var configurationDraft: StaleTicketsConfigurationDraft
+    public private(set) var configurationDraft: StaleTicketsConfigurationDraft
     @Published var sortOrder: [StaleTicketsTableComparator]
 
     public private(set) var request: StaleTicketsRequest
@@ -300,7 +299,6 @@ public final class StaleTicketsViewModel: ObservableObject {
 
     public func refresh() {
         guard isConfigured else {
-            isConfigurationPresented = true
             return
         }
 
@@ -353,18 +351,20 @@ public final class StaleTicketsViewModel: ObservableObject {
         }
     }
 
-    public func saveConfigurationDraft() {
+    public func saveConfigurationDraft(_ draft: StaleTicketsConfigurationDraft) -> Bool {
         do {
-            let configuration = try configurationDraft.validatedConfiguration()
-            request = try saveConfiguration(configurationDraft, configuration)
+            let configuration = try draft.validatedConfiguration()
+            request = try saveConfiguration(draft, configuration)
+            configurationDraft = draft
             isConfigured = true
-            isConfigurationPresented = false
             if isWatching {
                 updateWatchTask()
             }
             refresh()
+            return true
         } catch {
             refreshError = error.localizedDescription
+            return false
         }
     }
 

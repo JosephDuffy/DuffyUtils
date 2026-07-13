@@ -8,8 +8,6 @@ import JiraToolsStaleTicketsUI
 
 @MainActor
 final class JiraToolsAppCoordinator: ObservableObject {
-    @Published var isNewToolPresented = false
-    @Published var selectedToolID: UUID?
     @Published private(set) var toolInstances: [JiraToolInstance] = []
 
     private let accountStore = JiraAccountStore()
@@ -55,11 +53,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
         staleTicketsViewModels[id]
     }
 
-    func presentNewTool() {
-        isNewToolPresented = true
-    }
-
-    func addTool(_ tool: JiraToolIdentifier) {
+    func addTool(_ tool: JiraToolIdentifier) -> JiraToolInstance.ID {
         var preferences = StaleTicketsPreferences()
         preferences.displayName = tool.defaultDisplayName
 
@@ -68,23 +62,18 @@ final class JiraToolsAppCoordinator: ObservableObject {
             staleTicketsPreferences: preferences,
         )
         toolInstances.append(instance)
-        selectedToolID = instance.id
         try? saveToolInstances()
         rebuildStaleTicketsViewModel(for: instance)
-        staleTicketsViewModels[instance.id]?.isConfigurationPresented = true
+        return instance.id
     }
 
-    func removeSelectedTool() {
-        guard let selectedToolID,
-              let index = toolInstances.firstIndex(where: { $0.id == selectedToolID }) else {
+    func removeTool(id: JiraToolInstance.ID) {
+        guard let index = toolInstances.firstIndex(where: { $0.id == id }) else {
             return
         }
 
-        staleTicketsViewModels[selectedToolID] = nil
+        staleTicketsViewModels[id] = nil
         toolInstances.remove(at: index)
-        self.selectedToolID = toolInstances.indices.contains(index)
-            ? toolInstances[index].id
-            : toolInstances.last?.id
         try? saveToolInstances()
     }
 
@@ -141,8 +130,6 @@ final class JiraToolsAppCoordinator: ObservableObject {
         }
 
         toolInstances = preferences.instances
-        selectedToolID = toolInstances.first?.id
-        isNewToolPresented = toolInstances.isEmpty
     }
 
     private func rebuildStaleTicketsViewModels() {
@@ -260,7 +247,6 @@ final class JiraToolsAppCoordinator: ObservableObject {
                 }
             },
         )
-        viewModel.isConfigurationPresented = !preferences.isConfigured
         viewModel.isWatching = preferences.isConfigured && preferences.isWatching
         staleTicketsViewModels[instance.id] = viewModel
     }

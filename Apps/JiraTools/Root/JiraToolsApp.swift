@@ -7,6 +7,7 @@ enum JiraToolsWindow {
 @main
 struct JiraToolsApp: App {
     @Environment(\.openWindow) private var openWindow
+    @FocusedValue(\.jiraToolsNewToolAction) private var newToolAction
     @StateObject private var coordinator = JiraToolsAppCoordinator()
 
     var body: some Scene {
@@ -22,8 +23,9 @@ struct JiraToolsApp: App {
         .commands {
             CommandGroup(after: .newItem) {
                 Button("New Tool…") {
-                    coordinator.presentNewTool()
+                    newToolAction?.perform()
                 }
+                .disabled(newToolAction == nil)
             }
 
             CommandGroup(after: .windowArrangement) {

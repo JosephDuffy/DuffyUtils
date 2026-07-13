@@ -4,6 +4,8 @@ import SwiftUI
 public struct StaleTicketsView: View {
     @ObservedObject private var viewModel: StaleTicketsViewModel
     @Environment(\.openURL) private var openURL
+    @State private var configurationDraft: StaleTicketsConfigurationDraft
+    @State private var isConfigurationPresented: Bool
     private let title: String
 
     public init(
@@ -12,6 +14,8 @@ public struct StaleTicketsView: View {
     ) {
         self.title = title
         self.viewModel = viewModel
+        _configurationDraft = State(initialValue: viewModel.configurationDraft)
+        _isConfigurationPresented = State(initialValue: !viewModel.isConfigured)
     }
 
     public var body: some View {
@@ -37,7 +41,7 @@ public struct StaleTicketsView: View {
                         if viewModel.isConfigured {
                             viewModel.refresh()
                         } else {
-                            viewModel.isConfigurationPresented = true
+                            presentConfiguration()
                         }
                     }
                 }
@@ -57,16 +61,16 @@ public struct StaleTicketsView: View {
                 .toggleStyle(.button)
 
                 Button {
-                    viewModel.isConfigurationPresented = true
+                    presentConfiguration()
                 } label: {
                     Label("Configure", systemImage: "slider.horizontal.3")
                 }
             }
         }
-        .sheet(isPresented: $viewModel.isConfigurationPresented) {
+        .sheet(isPresented: $isConfigurationPresented) {
             StaleTicketsConfigurationSheet(
-                draft: $viewModel.configurationDraft,
-                onSave: viewModel.saveConfigurationDraft,
+                draft: $configurationDraft,
+                onSave: saveConfiguration,
             )
         }
         .alert(
@@ -233,6 +237,20 @@ public struct StaleTicketsView: View {
         }
 
         return date.formatted(.relative(presentation: .named))
+    }
+
+    private func presentConfiguration() {
+        configurationDraft = viewModel.configurationDraft
+        isConfigurationPresented = true
+    }
+
+    private func saveConfiguration() -> Bool {
+        guard viewModel.saveConfigurationDraft(configurationDraft) else {
+            return false
+        }
+
+        isConfigurationPresented = false
+        return true
     }
 
     private func progressDescription(for snapshot: StaleTicketsSnapshot) -> String {
