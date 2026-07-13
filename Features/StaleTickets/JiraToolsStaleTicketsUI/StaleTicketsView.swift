@@ -237,24 +237,28 @@ public struct StaleTicketsView: View {
         TableColumn("Your Comment", sortUsing: StaleTicketsTableComparator(column: .currentUserComment)) { row in
             Text(ageText(row.report.latestCurrentUserCommentDate))
                 .opacity(rowOpacity(for: row))
+                .help(row.report.latestCurrentUserCommentDate?.formatted() ?? "You have never commented")
         }
         .width(min: 110, ideal: 140)
 
         TableColumn("Assignee Comment", sortUsing: StaleTicketsTableComparator(column: .assigneeComment)) { row in
             Text(ageText(row.report.latestAssigneeCommentDate))
                 .opacity(rowOpacity(for: row))
+                .help(row.report.latestAssigneeCommentDate?.formatted() ?? "Assignee has never commented")
         }
         .width(min: 130, ideal: 155)
 
         TableColumn("Latest Comment", sortUsing: StaleTicketsTableComparator(column: .latestComment)) { row in
             Text(ageText(row.report.latestCommentDate))
                 .opacity(rowOpacity(for: row))
+                .help(row.report.latestCommentDate?.formatted() ?? "No comment has been made")
         }
         .width(min: 120, ideal: 145)
 
         TableColumn("Latest Reply", sortUsing: StaleTicketsTableComparator(column: .latestReply)) { row in
             Text(ageText(row.report.latestReplyDate, missing: "None"))
                 .opacity(rowOpacity(for: row))
+                .help(row.report.latestReplyDate?.formatted() ?? "No comment replies")
         }
         .width(min: 110, ideal: 135)
 
