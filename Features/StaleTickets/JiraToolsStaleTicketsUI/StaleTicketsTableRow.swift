@@ -54,19 +54,19 @@ public struct StaleTicketsTableRow: Identifiable {
     }
 
     public var currentUserCommentDate: Date {
-        report.latestCurrentUserCommentDate ?? .distantFuture
+        report.latestCurrentUserCommentDate ?? .distantPast
     }
 
     public var assigneeCommentDate: Date {
-        report.latestAssigneeCommentDate ?? .distantFuture
+        report.latestAssigneeCommentDate ?? .distantPast
     }
 
     public var latestCommentDate: Date {
-        report.latestCommentDate ?? .distantFuture
+        report.latestCommentDate ?? .distantPast
     }
 
     public var latestReplyDate: Date {
-        report.latestReplyDate ?? .distantFuture
+        report.latestReplyDate ?? .distantPast
     }
 
     public init(report: StaleTicketsReport, extraFields: [JiraField]) {
