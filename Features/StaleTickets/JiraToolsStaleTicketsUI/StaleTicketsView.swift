@@ -150,6 +150,7 @@ public struct StaleTicketsView: View {
             TableColumnForEach(snapshot.extraFields, id: \.id) { field in
                 TableColumn(field.name, sortUsing: StaleTicketsTableComparator(column: .extraField(field.id))) { row in
                     Text(row.extraFieldValue(for: field.id))
+                        .opacity(rowOpacity(for: row))
                 }
                 .width(min: 100, ideal: 150)
             }
@@ -163,6 +164,7 @@ public struct StaleTicketsView: View {
             TableColumn("Extra Fields", sortUsing: StaleTicketsTableComparator(column: .extraFields)) { row in
                 Text(row.extraFieldsDisplay.isEmpty ? "—" : row.extraFieldsDisplay)
                     .lineLimit(3)
+                    .opacity(rowOpacity(for: row))
             }
             .width(min: 150, ideal: 220)
             commentAndSummaryColumns()
@@ -174,6 +176,7 @@ public struct StaleTicketsView: View {
         TableColumn("Severity", sortUsing: StaleTicketsTableComparator(column: .severity)) { row in
             Text(row.severityLabel)
                 .foregroundStyle(severityColor(for: row))
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 76, ideal: 88)
 
@@ -182,16 +185,19 @@ public struct StaleTicketsView: View {
                 openURL(viewModel.issueURL(for: row))
             }
             .buttonStyle(.link)
+            .opacity(rowOpacity(for: row))
         }
         .width(min: 80, ideal: 100)
 
         TableColumn("Status", sortUsing: StaleTicketsTableComparator(column: .status)) { row in
             Text(row.status)
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 90, ideal: 130)
 
         TableColumn("Assignee", sortUsing: StaleTicketsTableComparator(column: .assignee)) { row in
             Text(row.assignee)
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 100, ideal: 150)
     }
@@ -200,21 +206,25 @@ public struct StaleTicketsView: View {
     private func commentAndSummaryColumns() -> some TableColumnContent<StaleTicketsTableRow, StaleTicketsTableComparator> {
         TableColumn("Your Comment", sortUsing: StaleTicketsTableComparator(column: .currentUserComment)) { row in
             Text(ageText(row.report.latestCurrentUserCommentDate))
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 110, ideal: 140)
 
         TableColumn("Assignee Comment", sortUsing: StaleTicketsTableComparator(column: .assigneeComment)) { row in
             Text(ageText(row.report.latestAssigneeCommentDate))
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 130, ideal: 155)
 
         TableColumn("Latest Comment", sortUsing: StaleTicketsTableComparator(column: .latestComment)) { row in
             Text(ageText(row.report.latestCommentDate))
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 120, ideal: 145)
 
         TableColumn("Latest Reply", sortUsing: StaleTicketsTableComparator(column: .latestReply)) { row in
             Text(ageText(row.report.latestReplyDate, missing: "None"))
+                .opacity(rowOpacity(for: row))
         }
         .width(min: 110, ideal: 135)
 
@@ -225,8 +235,9 @@ public struct StaleTicketsView: View {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.red)
-                }
+                    }
             }
+            .opacity(rowOpacity(for: row))
         }
         .width(min: 260, ideal: 420)
     }
@@ -277,6 +288,10 @@ public struct StaleTicketsView: View {
         case .ok:
             .green
         }
+    }
+
+    private func rowOpacity(for row: StaleTicketsTableRow) -> Double {
+        row.report.isDeemphasized ? 0.45 : 1
     }
 }
 
