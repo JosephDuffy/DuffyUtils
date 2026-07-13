@@ -155,6 +155,28 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
         }
     }
 
+    subscript(highlightedCommentSourceEnabled source: HighlightedCommentSource) -> Bool {
+        get { highlightedCommentSources.contains(source) }
+        set(isEnabled) {
+            if isEnabled {
+                highlightedCommentSources.insert(source)
+            } else {
+                highlightedCommentSources.remove(source)
+            }
+        }
+    }
+
+    subscript(alertSeverityEnabled severity: Severity) -> Bool {
+        get { alertSeverities.contains(severity) }
+        set(isEnabled) {
+            if isEnabled {
+                alertSeverities.insert(severity)
+            } else {
+                alertSeverities.remove(severity)
+            }
+        }
+    }
+
     private func commaSeparatedValues(from input: String) -> [String] {
         input
             .split(whereSeparator: { $0 == "," || $0.isNewline })

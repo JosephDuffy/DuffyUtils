@@ -93,16 +93,7 @@ struct StaleTicketsConfigurationSheet: View {
     ) -> some View {
         Toggle(
             label,
-            isOn: Binding(
-                get: { draft.highlightedCommentSources.contains(source) },
-                set: { isEnabled in
-                    if isEnabled {
-                        draft.highlightedCommentSources.insert(source)
-                    } else {
-                        draft.highlightedCommentSources.remove(source)
-                    }
-                },
-            ),
+            isOn: $draft[highlightedCommentSourceEnabled: source],
         )
     }
 
@@ -112,16 +103,7 @@ struct StaleTicketsConfigurationSheet: View {
     ) -> some View {
         Toggle(
             label,
-            isOn: Binding(
-                get: { draft.alertSeverities.contains(severity) },
-                set: { isEnabled in
-                    if isEnabled {
-                        draft.alertSeverities.insert(severity)
-                    } else {
-                        draft.alertSeverities.remove(severity)
-                    }
-                },
-            ),
+            isOn: $draft[alertSeverityEnabled: severity],
         )
     }
 
