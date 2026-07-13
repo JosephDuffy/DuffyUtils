@@ -10,65 +10,63 @@ public final class StaleTicketsViewModel: ObservableObject {
     @Published public private(set) var lastLoadedAt: Date?
     @Published public private(set) var refreshError: String?
     @Published public private(set) var isRefreshing = false
-    @Published public private(set) var isConfigured: Bool
     @Published public var isWatching = false {
         didSet {
-            watchingDidChange(isWatching)
+            watchingDidChange(isWatching: isWatching)
             if isWatching {
                 watchChangeCoordinator.reset()
             }
             updateWatchTask()
         }
     }
-    public private(set) var configurationDraft: StaleTicketsConfigurationDraft
     @Published var sortOrder: [StaleTicketsTableComparator]
 
-    public private(set) var request: StaleTicketsRequest
     public private(set) var rows: [StaleTicketsTableRow] = []
 
-    private let saveConfiguration: StaleTicketsConfigurationSaveAction
-    private let authorizationProvider: @MainActor () throws -> JiraAuthorization
-    private let deliverAlert: @MainActor ([StaleTicketsReport], Set<Severity>, JiraToolsAlertMode) async -> Void
-    private let sortDidChange: @MainActor (StaleTicketsTableSort) -> Void
-    private let watchingDidChange: @MainActor (Bool) -> Void
+    public let configuration: StaleTicketsConfigurationViewModel
+
+    private let loadAuthorization: LoadStaleTicketsAuthorizationUseCase
+    private let refreshStaleTickets: RefreshStaleTicketsUseCase
+    private let watchingDidChange: HandleStaleTicketsWatchingChangeUseCase
+    private let deliverAlert: DeliverStaleTicketsAlertUseCase
+    private let saveTableSort: SaveStaleTicketsTableSortUseCase
     private var watchChangeCoordinator = WatchChangeCoordinator<String, StaleTicketState>()
     private var refreshTask: Task<Void, Never>?
+    private var configurationRequestCancellable: AnyCancellable?
     private var sortOrderCancellable: AnyCancellable?
     private var watchTask: Task<Void, Never>?
     private var refreshID = UUID()
 
     public init(
-        request: StaleTicketsRequest,
-        filterInput: String,
-        queryMode: StaleTicketsQueryMode = .filter,
-        refreshInterval: TimeInterval = 60,
-        isConfigured: Bool = true,
-        alertSeverities: Set<Severity> = [.warning, .error],
-        alertMode: JiraToolsAlertMode = .both,
+        configuration: StaleTicketsConfigurationViewModel,
         tableSort: StaleTicketsTableSort = StaleTicketsTableSort(),
-        saveConfiguration: @escaping StaleTicketsConfigurationSaveAction,
-        authorizationProvider: @escaping @MainActor () throws -> JiraAuthorization,
-        watchingDidChange: @escaping @MainActor (Bool) -> Void = { _ in },
-        deliverAlert: @escaping @MainActor ([StaleTicketsReport], Set<Severity>, JiraToolsAlertMode) async -> Void = { _, _, _ in },
-        sortDidChange: @escaping @MainActor (StaleTicketsTableSort) -> Void = { _ in },
+        loadAuthorization: LoadStaleTicketsAuthorizationUseCase,
+        refreshStaleTickets: RefreshStaleTicketsUseCase = RefreshStaleTicketsUseCase { request in
+            StaleTicketsRefreshService(request: request).refresh()
+        },
+        watchingDidChange: HandleStaleTicketsWatchingChangeUseCase = HandleStaleTicketsWatchingChangeUseCase { _ in },
+        deliverAlert: DeliverStaleTicketsAlertUseCase = DeliverStaleTicketsAlertUseCase { _, _, _ in },
+        saveTableSort: SaveStaleTicketsTableSortUseCase = SaveStaleTicketsTableSortUseCase { _ in },
     ) {
-        self.request = request
-        self.isConfigured = isConfigured
-        configurationDraft = StaleTicketsConfigurationDraft(
-            configuration: request.configuration,
-            filterInput: filterInput,
-            queryMode: queryMode,
-            baseURL: request.location.baseURL.absoluteString,
-            refreshInterval: refreshInterval,
-        )
+        self.configuration = configuration
         sortOrder = tableSort.comparators
-        self.saveConfiguration = saveConfiguration
-        self.authorizationProvider = authorizationProvider
+        self.loadAuthorization = loadAuthorization
+        self.refreshStaleTickets = refreshStaleTickets
         self.watchingDidChange = watchingDidChange
         self.deliverAlert = deliverAlert
-        self.sortDidChange = sortDidChange
-        configurationDraft.alertSeverities = alertSeverities
-        configurationDraft.alertMode = alertMode
+        self.saveTableSort = saveTableSort
+        configurationRequestCancellable = configuration.$request
+            .dropFirst()
+            .sink { [weak self] _ in
+                guard let self else {
+                    return
+                }
+
+                if isWatching {
+                    updateWatchTask()
+                }
+                refresh()
+            }
         sortOrderCancellable = $sortOrder
             .dropFirst()
             .sink { [weak self] sortOrder in
@@ -76,8 +74,8 @@ public final class StaleTicketsViewModel: ObservableObject {
                     return
                 }
 
-                self.rows = self.rows.sorted(using: sortOrder)
-                self.sortDidChange(StaleTicketsTableSort(comparators: sortOrder))
+                rows = rows.sorted(using: sortOrder)
+                saveTableSort(tableSort: StaleTicketsTableSort(comparators: sortOrder))
             }
     }
 
@@ -87,7 +85,7 @@ public final class StaleTicketsViewModel: ObservableObject {
     }
 
     public func refresh() {
-        guard isConfigured else {
+        guard configuration.isConfigured else {
             return
         }
 
@@ -100,19 +98,20 @@ public final class StaleTicketsViewModel: ObservableObject {
         let refreshRequest: StaleTicketsRequest
         do {
             refreshRequest = StaleTicketsRequest(
-                authorization: try authorizationProvider(),
-                location: request.location,
-                configuration: request.configuration,
+                authorization: try loadAuthorization(),
+                location: configuration.request.location,
+                configuration: configuration.request.configuration,
             )
         } catch {
             refreshError = error.localizedDescription
+            isRefreshing = false
             return
         }
 
-        let service = StaleTicketsRefreshService(request: refreshRequest)
+        let snapshots = refreshStaleTickets(request: refreshRequest)
         refreshTask = Task { [weak self] in
             do {
-                for try await snapshot in service.refresh() {
+                for try await snapshot in snapshots {
                     guard !Task.isCancelled else {
                         return
                     }
@@ -120,7 +119,7 @@ public final class StaleTicketsViewModel: ObservableObject {
                         return
                     }
 
-                    self.apply(snapshot)
+                    apply(snapshot)
                 }
             } catch is CancellationError {
                 return
@@ -140,29 +139,16 @@ public final class StaleTicketsViewModel: ObservableObject {
         }
     }
 
-    public func saveConfigurationDraft(_ draft: StaleTicketsConfigurationDraft) -> Bool {
-        do {
-            let configuration = try draft.validatedConfiguration()
-            request = try saveConfiguration(draft, configuration)
-            configurationDraft = draft
-            isConfigured = true
-            if isWatching {
-                updateWatchTask()
-            }
-            refresh()
-            return true
-        } catch {
-            refreshError = error.localizedDescription
-            return false
-        }
-    }
-
     public func clearRefreshError() {
         refreshError = nil
     }
 
+    public func presentError(_ error: any Error) {
+        refreshError = error.localizedDescription
+    }
+
     public func issueURL(for row: StaleTicketsTableRow) -> URL {
-        request.location.baseURL
+        configuration.request.location.baseURL
             .appendingPathComponent("browse")
             .appendingPathComponent(row.key)
     }
@@ -205,17 +191,21 @@ public final class StaleTicketsViewModel: ObservableObject {
                 nil
             }
         }
+        let alertSeverities = configuration.savedDraft.alertSeverities
         let attentionReports = changedReports.filter {
-            configurationDraft.alertSeverities.contains($0.severity)
+            alertSeverities.contains($0.severity)
         }
         guard !attentionReports.isEmpty else {
             return
         }
 
-        let alertSeverities = configurationDraft.alertSeverities
-        let alertMode = configurationDraft.alertMode
+        let alertMode = configuration.savedDraft.alertMode
         Task {
-            await deliverAlert(attentionReports, alertSeverities, alertMode)
+            await deliverAlert(
+                reports: attentionReports,
+                severities: alertSeverities,
+                mode: alertMode,
+            )
         }
     }
 
@@ -228,7 +218,7 @@ public final class StaleTicketsViewModel: ObservableObject {
         }
 
         refresh()
-        let interval = configurationDraft.refreshInterval
+        let interval = configuration.savedDraft.refreshInterval
         watchTask = Task { [weak self] in
             while !Task.isCancelled {
                 let nanoseconds = UInt64(interval * 1_000_000_000)
@@ -240,5 +230,4 @@ public final class StaleTicketsViewModel: ObservableObject {
             }
         }
     }
-
 }

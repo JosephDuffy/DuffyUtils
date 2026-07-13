@@ -36,6 +36,15 @@
         "revision" : "b5544ba79a70a0cb3563e75bf26dc198d6b40ed3",
         "version" : "1.7.4"
       }
+    },
+    {
+      "identity" : "usecasemacro",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/JosephDuffy/UseCaseMacro.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "2ea6d82575671c5cc2884a7947349e816ebd6cc7"
+      }
     }
   ],
   "version" : 3

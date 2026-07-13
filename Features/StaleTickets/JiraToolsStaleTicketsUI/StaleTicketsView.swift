@@ -3,8 +3,8 @@ import SwiftUI
 
 public struct StaleTicketsView: View {
     @ObservedObject private var viewModel: StaleTicketsViewModel
+    @ObservedObject private var configurationViewModel: StaleTicketsConfigurationViewModel
     @Environment(\.openURL) private var openURL
-    @State private var configurationDraft: StaleTicketsConfigurationDraft
     @SceneStorage("StaleTicketsView.isConfigurationSidebarPresented") private var isConfigurationSidebarPresented: Bool = true
     private let title: String
 
@@ -14,7 +14,7 @@ public struct StaleTicketsView: View {
     ) {
         self.title = title
         self.viewModel = viewModel
-        _configurationDraft = State(initialValue: viewModel.configurationDraft)
+        configurationViewModel = viewModel.configuration
     }
 
     public var body: some View {
@@ -35,7 +35,7 @@ public struct StaleTicketsView: View {
                 Button(action: viewModel.refresh) {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(viewModel.isRefreshing || !viewModel.isConfigured)
+                .disabled(viewModel.isRefreshing || !configurationViewModel.isConfigured)
 
                 Toggle(isOn: $viewModel.isWatching) {
                     Label("Watch", systemImage: "eye")
@@ -93,14 +93,14 @@ public struct StaleTicketsView: View {
                 )
             } else {
                 StaleTicketsEmptyState(
-                    title: viewModel.isConfigured ? "No Stale Ticket Results" : "Configure Stale Tickets",
-                    systemImage: viewModel.isConfigured ? "ticket" : "slider.horizontal.3",
-                    message: viewModel.isConfigured
+                    title: configurationViewModel.isConfigured ? "No Stale Ticket Results" : "Configure Stale Tickets",
+                    systemImage: configurationViewModel.isConfigured ? "ticket" : "slider.horizontal.3",
+                    message: configurationViewModel.isConfigured
                         ? "Refresh to load tickets matching the configured Jira filter."
                         : "Choose a Jira filter or JQL query before refreshing tickets.",
                 ) {
-                    Button(viewModel.isConfigured ? "Refresh" : "Configure") {
-                        if viewModel.isConfigured {
+                    Button(configurationViewModel.isConfigured ? "Refresh" : "Configure") {
+                        if configurationViewModel.isConfigured {
                             viewModel.refresh()
                         } else {
                             presentConfiguration()
@@ -114,7 +114,7 @@ public struct StaleTicketsView: View {
 
     private var configurationSidebar: some View {
         StaleTicketsConfigurationSidebar(
-            draft: $configurationDraft,
+            draft: $configurationViewModel.draft,
             onSave: saveConfiguration,
             onClose: dismissConfiguration,
         )
@@ -281,7 +281,7 @@ public struct StaleTicketsView: View {
     }
 
     private func presentConfiguration() {
-        configurationDraft = viewModel.configurationDraft
+        configurationViewModel.resetDraft()
         isConfigurationSidebarPresented = true
     }
 
@@ -298,7 +298,10 @@ public struct StaleTicketsView: View {
     }
 
     private func saveConfiguration() -> Bool {
-        guard viewModel.saveConfigurationDraft(configurationDraft) else {
+        do {
+            try configurationViewModel.save()
+        } catch {
+            viewModel.presentError(error)
             return false
         }
 

@@ -1,13 +1,4 @@
-import Combine
 import Foundation
-import JiraToolsAppFoundation
-import JiraToolsCore
-import JiraToolsStaleTickets
-
-public typealias StaleTicketsConfigurationSaveAction = @MainActor (
-    StaleTicketsConfigurationDraft,
-    StaleTicketsConfiguration
-) throws -> StaleTicketsRequest
 
 public enum StaleTicketsTableSortColumn: Hashable, Sendable {
     case severity

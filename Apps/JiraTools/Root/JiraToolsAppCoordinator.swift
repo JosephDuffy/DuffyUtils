@@ -151,7 +151,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
         }
 
         let preferences = instance.staleTicketsPreferences
-        let configurationDraft = StaleTicketsConfigurationDraft(
+        var configurationDraft = StaleTicketsConfigurationDraft(
             configuration: preferences.configuration,
             displayName: preferences.displayName,
             filterInput: preferences.filterInput,
@@ -159,22 +159,19 @@ final class JiraToolsAppCoordinator: ObservableObject {
             baseURL: account.siteURL.absoluteString,
             refreshInterval: preferences.refreshInterval,
         )
+        configurationDraft.alertSeverities = preferences.alertSeverities
+        configurationDraft.alertMode = preferences.alertMode
         let location = try? configurationDraft.resolvedLocation()
         let request = StaleTicketsRequest(
             authorization: .oauth(accessToken: ""),
             location: location ?? ResolvedJiraLocation(baseURL: account.siteURL, jql: ""),
             configuration: preferences.configuration,
         )
-        let viewModel = StaleTicketsViewModel(
+        let configurationViewModel = StaleTicketsConfigurationViewModel(
+            draft: configurationDraft,
             request: request,
-            filterInput: preferences.filterInput,
-            queryMode: preferences.queryMode,
-            refreshInterval: preferences.refreshInterval,
             isConfigured: preferences.isConfigured && location != nil,
-            alertSeverities: preferences.alertSeverities,
-            alertMode: preferences.alertMode,
-            tableSort: preferences.tableSort,
-            saveConfiguration: { [weak self] draft, configuration in
+            saveConfiguration: SaveStaleTicketsConfigurationUseCase { [weak self] draft, configuration in
                 guard let self else {
                     throw CancellationError()
                 }
@@ -196,14 +193,18 @@ final class JiraToolsAppCoordinator: ObservableObject {
                     configuration: configuration,
                 )
             },
-            authorizationProvider: { [weak self] in
+        )
+        let viewModel = StaleTicketsViewModel(
+            configuration: configurationViewModel,
+            tableSort: preferences.tableSort,
+            loadAuthorization: LoadStaleTicketsAuthorizationUseCase { [weak self] in
                 guard let self,
                       let authorization = try self.accountStore.authorization() else {
                     throw JiraToolsError("Add Jira credentials before refreshing tickets.")
                 }
                 return authorization
             },
-            watchingDidChange: { [weak self] isWatching in
+            watchingDidChange: HandleStaleTicketsWatchingChangeUseCase { [weak self] isWatching in
                 guard let self else {
                     return
                 }
@@ -217,7 +218,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
                     }
                 }
             },
-            deliverAlert: { [weak self] reports, severities, mode in
+            deliverAlert: DeliverStaleTicketsAlertUseCase { [weak self] reports, severities, mode in
                 guard let self, mode != .none else {
                     return
                 }
@@ -237,7 +238,7 @@ final class JiraToolsAppCoordinator: ObservableObject {
                     mode: mode,
                 )
             },
-            sortDidChange: { [weak self] tableSort in
+            saveTableSort: SaveStaleTicketsTableSortUseCase { [weak self] tableSort in
                 guard let self else {
                     return
                 }
