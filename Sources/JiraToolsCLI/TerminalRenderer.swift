@@ -96,7 +96,7 @@ struct TerminalRenderer {
             "JQL: \(configuration.location.jql)",
             "User: \(snapshot.currentUserName)",
             "Status: \(statusText(snapshot.status, updatedAt: snapshot.updatedAt))",
-            "Thresholds: ok <= \(formatHours(configuration.tickets.greenHours))h, warning >= \(formatHours(configuration.tickets.warningHours))h, error >= \(formatHours(configuration.tickets.errorHours))h",
+            "Thresholds: ok <= \(formatHours(configuration.tickets.okDuration))h, warning >= \(formatHours(configuration.tickets.warningDuration))h, error >= \(formatHours(configuration.tickets.errorDuration))h",
             "Updated: \(formatter.string(from: snapshot.updatedAt))",
         ]
 

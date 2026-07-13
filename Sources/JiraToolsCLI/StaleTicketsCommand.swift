@@ -134,9 +134,9 @@ struct StaleTicketsCommand: AsyncParsableCommand {
             baseURL: baseURL.flatMap(URL.init(string:)),
         )
         let configuration = StaleTicketsConfiguration(
-            warningHours: warningHours,
-            errorHours: errorHours,
-            greenHours: greenHours,
+            warningDuration: .seconds(warningHours * 3_600),
+            errorDuration: .seconds(errorHours * 3_600),
+            okDuration: .seconds(greenHours * 3_600),
             maxResults: maxResults,
             extraFields: extraFields,
             deemphasizedStatuses: deemphasizedStatuses,

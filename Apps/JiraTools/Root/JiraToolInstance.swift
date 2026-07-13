@@ -54,9 +54,9 @@ struct StaleTicketsPreferences: Codable {
     var alertMode: JiraToolsAlertMode = .both
     var tableSort = StaleTicketsTableSort()
     var configuration = StaleTicketsConfiguration(
-        warningHours: 20 * 3_600,
-        errorHours: 24 * 3_600,
-        greenHours: 4 * 3_600,
+        warningDuration: .hours(20),
+        errorDuration: .hours(24),
+        okDuration: .hours(4),
         maxResults: 100,
         extraFields: [],
         deemphasizedStatuses: [],
@@ -74,6 +74,7 @@ struct StaleTicketsPreferences: Codable {
         case alertSeverities
         case alertMode
         case tableSort
+        // Persist durations as seconds using the established preference keys.
         case warningHours
         case errorHours
         case greenHours
@@ -101,9 +102,9 @@ struct StaleTicketsPreferences: Codable {
         alertMode = try container.decodeIfPresent(JiraToolsAlertMode.self, forKey: .alertMode) ?? .both
         tableSort = try container.decodeIfPresent(StaleTicketsTableSort.self, forKey: .tableSort) ?? StaleTicketsTableSort()
         configuration = StaleTicketsConfiguration(
-            warningHours: try container.decodeIfPresent(TimeInterval.self, forKey: .warningHours) ?? 20 * 3_600,
-            errorHours: try container.decodeIfPresent(TimeInterval.self, forKey: .errorHours) ?? 24 * 3_600,
-            greenHours: try container.decodeIfPresent(TimeInterval.self, forKey: .greenHours) ?? 4 * 3_600,
+            warningDuration: try container.decode(Duration.self, forKey: .warningHours),
+            errorDuration: try container.decode(Duration.self, forKey: .errorHours),
+            okDuration: try container.decode(Duration.self, forKey: .greenHours),
             maxResults: try container.decodeIfPresent(Int.self, forKey: .maxResults) ?? 100,
             extraFields: try container.decodeIfPresent([String].self, forKey: .extraFields) ?? [],
             deemphasizedStatuses: try container.decodeIfPresent([String].self, forKey: .deemphasizedStatuses) ?? [],
@@ -125,13 +126,28 @@ struct StaleTicketsPreferences: Codable {
         try container.encode(alertSeverities, forKey: .alertSeverities)
         try container.encode(alertMode, forKey: .alertMode)
         try container.encode(tableSort, forKey: .tableSort)
-        try container.encode(configuration.warningHours, forKey: .warningHours)
-        try container.encode(configuration.errorHours, forKey: .errorHours)
-        try container.encode(configuration.greenHours, forKey: .greenHours)
+        try container.encode(configuration.warningDuration, forKey: .warningHours)
+        try container.encode(configuration.errorDuration, forKey: .errorHours)
+        try container.encode(configuration.okDuration, forKey: .greenHours)
         try container.encode(configuration.maxResults, forKey: .maxResults)
         try container.encode(configuration.extraFields, forKey: .extraFields)
         try container.encode(configuration.deemphasizedStatuses, forKey: .deemphasizedStatuses)
         try container.encode(Array(configuration.highlightedCommentSources), forKey: .highlightedCommentSources)
         try container.encode(configuration.sort, forKey: .sort)
+    }
+
+    private func seconds(in duration: Duration) -> TimeInterval {
+        let components = duration.components
+        return Double(components.seconds) + Double(components.attoseconds) / 1e18
+    }
+}
+
+extension Duration {
+    fileprivate static func hours(_ hours: some BinaryInteger) -> Duration {
+        .seconds(hours * 60 * 60)
+    }
+
+    fileprivate static func hours(_ hours: Double) -> Duration {
+        .seconds(hours * 60 * 60)
     }
 }

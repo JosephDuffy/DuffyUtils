@@ -40,9 +40,9 @@ struct StaleTicketsConfigurationSheet: View {
                     highlightedSourceToggle(.assignee, label: "Assignee top-level comments")
                     highlightedSourceToggle(.anyUser, label: "Any top-level comments")
 
-                    TextField("Green hours", value: $draft.greenHours, format: .number)
-                    TextField("Warning hours", value: $draft.warningHours, format: .number)
-                    TextField("Error hours", value: $draft.errorHours, format: .number)
+                    TextField("Green hours", value: $draft[hours: \.okDuration], format: .number)
+                    TextField("Warning hours", value: $draft[hours: \.warningDuration], format: .number)
+                    TextField("Error hours", value: $draft[hours: \.errorDuration], format: .number)
                 }
 
                 Section("Refresh") {

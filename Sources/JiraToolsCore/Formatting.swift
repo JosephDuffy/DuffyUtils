@@ -44,8 +44,10 @@ public func formatAge(
     return "\(String(format: "%.1f", hours / 24))d ago"
 }
 
-public func formatHours(_ hours: TimeInterval) -> String {
-    String(format: "%.1f", hours)
+public func formatHours(_ duration: Duration) -> String {
+    let components = duration.components
+    let hours = (Double(components.seconds) + Double(components.attoseconds) / 1e18) / 3_600
+    return String(format: "%.1f", hours)
 }
 
 public func formatDuration(_ seconds: TimeInterval) -> String {

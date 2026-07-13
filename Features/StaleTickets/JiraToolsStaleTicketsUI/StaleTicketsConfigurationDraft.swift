@@ -16,9 +16,9 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
     public var extraFields: String
     public var deemphasizedStatuses: String
     public var highlightedCommentSources: Set<HighlightedCommentSource>
-    public var greenHours: Double
-    public var warningHours: Double
-    public var errorHours: Double
+    public var okDuration: Duration
+    public var warningDuration: Duration
+    public var errorDuration: Duration
     public var maxResults: Int
     public var serviceSort: TicketSort
     public var refreshInterval: TimeInterval
@@ -33,9 +33,9 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
         extraFields: String,
         deemphasizedStatuses: String,
         highlightedCommentSources: Set<HighlightedCommentSource>,
-        greenHours: Double,
-        warningHours: Double,
-        errorHours: Double,
+        okDuration: Duration,
+        warningDuration: Duration,
+        errorDuration: Duration,
         maxResults: Int,
         serviceSort: TicketSort,
         refreshInterval: TimeInterval,
@@ -49,9 +49,9 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
         self.extraFields = extraFields
         self.deemphasizedStatuses = deemphasizedStatuses
         self.highlightedCommentSources = highlightedCommentSources
-        self.greenHours = greenHours
-        self.warningHours = warningHours
-        self.errorHours = errorHours
+        self.okDuration = okDuration
+        self.warningDuration = warningDuration
+        self.errorDuration = errorDuration
         self.maxResults = maxResults
         self.serviceSort = serviceSort
         self.refreshInterval = refreshInterval
@@ -75,9 +75,9 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
             extraFields: configuration.extraFields.joined(separator: ", "),
             deemphasizedStatuses: configuration.deemphasizedStatuses.joined(separator: ", "),
             highlightedCommentSources: configuration.highlightedCommentSources,
-            greenHours: configuration.greenHours / 3_600,
-            warningHours: configuration.warningHours / 3_600,
-            errorHours: configuration.errorHours / 3_600,
+            okDuration: configuration.okDuration,
+            warningDuration: configuration.warningDuration,
+            errorDuration: configuration.errorDuration,
             maxResults: configuration.maxResults,
             serviceSort: configuration.sort,
             refreshInterval: refreshInterval,
@@ -103,14 +103,14 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
             throw StaleTicketsConfigurationValidationError.missingHighlightedSource
         }
 
-        guard greenHours <= warningHours, warningHours < errorHours else {
+        guard okDuration <= warningDuration, warningDuration < errorDuration else {
             throw StaleTicketsConfigurationValidationError.invalidThresholds
         }
 
         return StaleTicketsConfiguration(
-            warningHours: warningHours * 3_600,
-            errorHours: errorHours * 3_600,
-            greenHours: greenHours * 3_600,
+            warningDuration: warningDuration,
+            errorDuration: errorDuration,
+            okDuration: okDuration,
             maxResults: maxResults,
             extraFields: commaSeparatedValues(from: extraFields),
             deemphasizedStatuses: commaSeparatedValues(from: deemphasizedStatuses),
@@ -140,6 +140,18 @@ public struct StaleTicketsConfigurationDraft: Equatable, Sendable {
             return try resolveJiraLocation(filterURL: filterURL, jql: nil, baseURL: baseURL)
         case .jql:
             return ResolvedJiraLocation(baseURL: baseURL, jql: queryInput)
+        }
+    }
+
+    subscript(
+        hours keyPath: WritableKeyPath<StaleTicketsConfigurationDraft, Duration>,
+    ) -> Double {
+        get {
+            let components = self[keyPath: keyPath].components
+            return (Double(components.seconds) + Double(components.attoseconds) / 1e18) / 3_600
+        }
+        set(hours) {
+            self[keyPath: keyPath] = .seconds(hours * 3_600)
         }
     }
 

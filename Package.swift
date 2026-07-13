@@ -157,7 +157,10 @@ let package = Package(
         ),
         .testTarget(
             name: "JiraToolsStaleTicketsTests",
-            dependencies: ["JiraToolsStaleTickets"],
+            dependencies: [
+                "JiraToolsStaleTickets",
+                "JiraToolsStaleTicketsUI",
+            ],
         ),
         .testTarget(
             name: "JiraToolsAppFoundationTests",

@@ -1,10 +1,10 @@
 import Foundation
 import JiraToolsCore
 
-public struct StaleTicketsConfiguration: Sendable {
-    public var warningHours: TimeInterval
-    public var errorHours: TimeInterval
-    public var greenHours: TimeInterval
+public struct StaleTicketsConfiguration: Codable, Sendable {
+    public var warningDuration: Duration
+    public var errorDuration: Duration
+    public var okDuration: Duration
     public var maxResults: Int
     public var extraFields: [String]
     public var deemphasizedStatuses: [String]
@@ -12,18 +12,18 @@ public struct StaleTicketsConfiguration: Sendable {
     public var sort: TicketSort
 
     public init(
-        warningHours: TimeInterval,
-        errorHours: TimeInterval,
-        greenHours: TimeInterval,
+        warningDuration: Duration,
+        errorDuration: Duration,
+        okDuration: Duration,
         maxResults: Int,
         extraFields: [String],
         deemphasizedStatuses: [String],
         highlightedCommentSources: Set<HighlightedCommentSource>,
         sort: TicketSort,
     ) {
-        self.warningHours = warningHours
-        self.errorHours = errorHours
-        self.greenHours = greenHours
+        self.warningDuration = warningDuration
+        self.errorDuration = errorDuration
+        self.okDuration = okDuration
         self.maxResults = maxResults
         self.extraFields = extraFields
         self.deemphasizedStatuses = deemphasizedStatuses
@@ -479,16 +479,16 @@ public func severity(
         return .error
     }
 
-    let ageHours = now.timeIntervalSince(latestCommentDate) / 3600
-    if ageHours >= configuration.errorHours {
+    let commentAge = Duration.seconds(now.timeIntervalSince(latestCommentDate))
+    if commentAge >= configuration.errorDuration {
         return .error
     }
 
-    if ageHours >= configuration.warningHours {
+    if commentAge >= configuration.warningDuration {
         return .warning
     }
 
-    if ageHours <= configuration.greenHours {
+    if commentAge <= configuration.okDuration {
         return .ok
     }
 
