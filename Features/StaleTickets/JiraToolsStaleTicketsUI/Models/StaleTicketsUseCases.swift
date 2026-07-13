@@ -44,5 +44,6 @@ public struct SaveStaleTicketsTableSortUseCase: Sendable {
 public struct RefreshStaleTicketsUseCase: Sendable {
     public func callAsFunction(
         request: StaleTicketsRequest,
+        cache: StaleTicketsRefreshCache,
     ) -> AsyncThrowingStream<StaleTicketsSnapshot, Error>
 }

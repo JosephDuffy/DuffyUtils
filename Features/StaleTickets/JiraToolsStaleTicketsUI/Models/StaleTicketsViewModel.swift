@@ -30,6 +30,7 @@ public final class StaleTicketsViewModel: ObservableObject {
     private let watchingDidChange: HandleStaleTicketsWatchingChangeUseCase
     private let deliverAlert: DeliverStaleTicketsAlertUseCase
     private let saveTableSort: SaveStaleTicketsTableSortUseCase
+    private let refreshCache = StaleTicketsRefreshCache()
     private var watchChangeCoordinator = WatchChangeCoordinator<String, StaleTicketState>()
     private var refreshTask: Task<Void, Never>?
     private var configurationRequestCancellable: AnyCancellable?
@@ -41,8 +42,8 @@ public final class StaleTicketsViewModel: ObservableObject {
         configuration: StaleTicketsConfigurationViewModel,
         tableSort: StaleTicketsTableSort = StaleTicketsTableSort(),
         loadAuthorization: LoadStaleTicketsAuthorizationUseCase,
-        refreshStaleTickets: RefreshStaleTicketsUseCase = RefreshStaleTicketsUseCase { request in
-            StaleTicketsRefreshService(request: request).refresh()
+        refreshStaleTickets: RefreshStaleTicketsUseCase = RefreshStaleTicketsUseCase { request, cache in
+            StaleTicketsRefreshService(request: request, cache: cache).refresh()
         },
         watchingDidChange: HandleStaleTicketsWatchingChangeUseCase = HandleStaleTicketsWatchingChangeUseCase { _ in },
         deliverAlert: DeliverStaleTicketsAlertUseCase = DeliverStaleTicketsAlertUseCase { _, _, _ in },
@@ -108,7 +109,10 @@ public final class StaleTicketsViewModel: ObservableObject {
             return
         }
 
-        let snapshots = refreshStaleTickets(request: refreshRequest)
+        let snapshots = refreshStaleTickets(
+            request: refreshRequest,
+            cache: refreshCache,
+        )
         refreshTask = Task { [weak self] in
             do {
                 for try await snapshot in snapshots {

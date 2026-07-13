@@ -38,4 +38,21 @@ struct JiraToolsCoreTests {
 
         #expect(error.localizedDescription == "The Jira token was rejected.")
     }
+
+    @Test
+    func issueDecodesUpdatedField() throws {
+        let issue = try JSONDecoder().decode(JiraIssue.self, from: Data("""
+        {
+          "id": "10001",
+          "key": "TEST-1",
+          "fields": {
+            "summary": "A ticket",
+            "status": { "name": "Open" },
+            "updated": "2026-07-13T09:30:00.000+0000"
+          }
+        }
+        """.utf8))
+
+        #expect(issue.fields.updated == "2026-07-13T09:30:00.000+0000")
+    }
 }

@@ -140,15 +140,18 @@ public struct StaleTicketsRequest: Sendable {
 
 public struct StaleTicketsRefreshService: Sendable {
     public let request: StaleTicketsRequest
+    public let cache: StaleTicketsRefreshCache
     private let now: @Sendable () -> Date
     private let session: URLSession
 
     public init(
         request: StaleTicketsRequest,
+        cache: StaleTicketsRefreshCache = StaleTicketsRefreshCache(),
         now: @escaping @Sendable () -> Date = { Date() },
         session: URLSession = .shared,
     ) {
         self.request = request
+        self.cache = cache
         self.now = now
         self.session = session
     }
@@ -189,17 +192,35 @@ public struct StaleTicketsRefreshService: Sendable {
             extraFieldIDs: [],
             session: session,
         )
-        let currentUser = try await setupClient.currentUser()
+        let currentUser: JiraUser
+        if let cachedCurrentUser = await cache.currentUser(for: request.location.baseURL) {
+            currentUser = cachedCurrentUser
+        } else {
+            currentUser = try await setupClient.currentUser()
+            await cache.storeCurrentUser(currentUser, for: request.location.baseURL)
+        }
         let extraFields: [JiraField]
 
-        do {
-            extraFields = try await resolveJiraFields(
-                request.configuration.extraFields,
-                client: setupClient,
-            )
-        } catch {
-            extraFields = []
-            errors.append(String(describing: error))
+        if let cachedExtraFields = await cache.extraFields(
+            configuredFields: request.configuration.extraFields,
+            baseURL: request.location.baseURL,
+        ) {
+            extraFields = cachedExtraFields
+        } else {
+            do {
+                extraFields = try await resolveJiraFields(
+                    request.configuration.extraFields,
+                    client: setupClient,
+                )
+                await cache.storeExtraFields(
+                    extraFields,
+                    configuredFields: request.configuration.extraFields,
+                    baseURL: request.location.baseURL,
+                )
+            } catch {
+                extraFields = []
+                errors.append(String(describing: error))
+            }
         }
 
         let client = JiraClient(
@@ -212,6 +233,7 @@ public struct StaleTicketsRefreshService: Sendable {
             "summary",
             "status",
             "assignee",
+            "updated",
         ]
         fields.append(contentsOf: extraFields.map(\.id))
 
@@ -220,49 +242,69 @@ public struct StaleTicketsRefreshService: Sendable {
             maxResults: request.configuration.maxResults,
             fields: fields,
         )
+        await cache.pruneCommentFacts(
+            for: Set(issues.map(\.id)),
+            baseURL: request.location.baseURL,
+        )
         var reportsByKey = Dictionary(
             uniqueKeysWithValues: issues.map { issue in
                 (issue.key, loadingReport(for: issue))
             },
         )
-        let extraFieldIDs = extraFields.map(\.id)
+        var issuesNeedingComments: [JiraIssue] = []
+        var completed = 0
+
+        for issue in issues {
+            if let commentFacts = await cache.commentFacts(
+                for: issue,
+                baseURL: request.location.baseURL,
+            ) {
+                reportsByKey[issue.key] = Self.report(
+                    for: issue,
+                    commentFacts: commentFacts,
+                    currentUserAccountId: currentUser.accountId,
+                    configuration: request.configuration,
+                    error: nil,
+                    now: now(),
+                )
+                completed += 1
+            } else {
+                issuesNeedingComments.append(issue)
+            }
+        }
 
         progress(snapshot(
             reports: Array(reportsByKey.values),
             extraFields: extraFields,
             currentUserName: currentUser.displayName ?? currentUser.accountId,
             errors: errors,
-            status: .checkingComments(completed: 0, total: issues.count),
+            status: .checkingComments(completed: completed, total: issues.count),
         ))
 
-        await withTaskGroup(of: StaleTicketsReport.self) { group in
-            for issue in issues {
-                let request = request
-                let currentUserAccountId = currentUser.accountId
-                let session = session
-                let now = now
-
+        await withTaskGroup(of: CommentLoadResult.self) { group in
+            for issue in issuesNeedingComments {
                 group.addTask {
-                    let client = JiraClient(
-                        baseURL: request.location.baseURL,
-                        authorization: request.authorization,
-                        extraFieldIDs: extraFieldIDs,
-                        session: session,
-                    )
-                    return await Self.report(
-                        for: issue,
-                        client: client,
-                        currentUserAccountId: currentUserAccountId,
-                        configuration: request.configuration,
-                        now: now(),
-                    )
+                    await Self.loadCommentFacts(for: issue, client: client)
                 }
             }
 
-            var completed = 0
-            for await report in group {
+            while let result = await group.next() {
                 completed += 1
-                reportsByKey[report.issue.key] = report
+                if let commentFacts = result.commentFacts {
+                    await cache.storeCommentFacts(
+                        commentFacts,
+                        for: result.issue,
+                        baseURL: request.location.baseURL,
+                    )
+                }
+                reportsByKey[result.issue.key] = Self.report(
+                    for: result.issue,
+                    commentFacts: result.commentFacts,
+                    currentUserAccountId: currentUser.accountId,
+                    configuration: request.configuration,
+                    error: result.error,
+                    now: now(),
+                )
                 progress(snapshot(
                     reports: Array(reportsByKey.values),
                     extraFields: extraFields,
@@ -317,56 +359,47 @@ public struct StaleTicketsRefreshService: Sendable {
         )
     }
 
-    private static func report(
+    private struct CommentLoadResult: Sendable {
+        let issue: JiraIssue
+        let commentFacts: StaleTicketsCommentFacts?
+        let error: String?
+    }
+
+    private static func loadCommentFacts(
         for issue: JiraIssue,
         client: JiraClient,
-        currentUserAccountId: String,
-        configuration: StaleTicketsConfiguration,
-        now: Date,
-    ) async -> StaleTicketsReport {
+    ) async -> CommentLoadResult {
         do {
             let comments = try await client.comments(for: issue.key)
-            return report(
-                for: issue,
-                comments: comments,
-                currentUserAccountId: currentUserAccountId,
-                configuration: configuration,
+            return CommentLoadResult(
+                issue: issue,
+                commentFacts: StaleTicketsCommentFacts(comments: comments),
                 error: nil,
-                now: now,
             )
         } catch {
-            return report(
-                for: issue,
-                comments: [],
-                currentUserAccountId: currentUserAccountId,
-                configuration: configuration,
+            return CommentLoadResult(
+                issue: issue,
+                commentFacts: nil,
                 error: String(describing: error),
-                now: now,
             )
         }
     }
 
     private static func report(
         for issue: JiraIssue,
-        comments: [JiraComment],
+        commentFacts: StaleTicketsCommentFacts?,
         currentUserAccountId: String,
         configuration: StaleTicketsConfiguration,
         error: String?,
         now: Date,
     ) -> StaleTicketsReport {
-        let topLevelComments = comments.filter { !$0.isReply }
-        let replies = comments.filter(\.isReply)
-        let latestTopLevelCommentDate = topLevelComments.compactMap { parseJiraDate($0.created) }.max()
-        let latestReplyDate = replies.compactMap { parseJiraDate($0.created) }.max()
-        let latestCurrentUserCommentDate = topLevelComments
-            .filter { $0.author.accountId == currentUserAccountId }
-            .compactMap { parseJiraDate($0.created) }
-            .max()
+        let latestTopLevelCommentDate = commentFacts?.latestTopLevelCommentDate
+        let latestReplyDate = commentFacts?.latestReplyDate
+        let latestCurrentUserCommentDate = commentFacts?.latestTopLevelCommentDateByAuthor[currentUserAccountId]
         let assigneeAccountId = issue.fields.assignee?.accountId
-        let latestAssigneeCommentDate = latestCommentDate(
-            in: topLevelComments,
-            by: assigneeAccountId,
-        )
+        let latestAssigneeCommentDate = assigneeAccountId.flatMap {
+            commentFacts?.latestTopLevelCommentDateByAuthor[$0]
+        }
         let highlightSeverities = Dictionary(
             uniqueKeysWithValues: configuration.highlightedCommentSources.map { source in
                 let commentDate = switch source {
@@ -434,14 +467,19 @@ public func resolveJiraFields(
         return []
     }
 
+    let fieldsNeedingLookup = configuredFields.filter { !$0.hasPrefix("customfield_") }
+    guard !fieldsNeedingLookup.isEmpty else {
+        return configuredFields.map { JiraField(id: $0, name: $0) }
+    }
+
     let fields = try await client.fields()
     return try configuredFields.map { configuredField in
-        if let exactIDMatch = fields.first(where: { $0.id == configuredField }) {
-            return exactIDMatch
-        }
-
         if configuredField.hasPrefix("customfield_") {
             return JiraField(id: configuredField, name: configuredField)
+        }
+
+        if let exactIDMatch = fields.first(where: { $0.id == configuredField }) {
+            return exactIDMatch
         }
 
         if let exactNameMatch = fields.first(where: { $0.name == configuredField }) {
@@ -454,20 +492,6 @@ public func resolveJiraFields(
 
         throw JiraToolsError("Could not find Jira field named '\(configuredField)'. Pass a customfield_XXXXX id if the field has a different name.")
     }
-}
-
-func latestCommentDate(
-    in comments: [JiraComment],
-    by accountId: String?,
-) -> Date? {
-    guard let accountId else {
-        return nil
-    }
-
-    return comments
-        .filter { $0.author.accountId == accountId }
-        .compactMap { parseJiraDate($0.created) }
-        .max()
 }
 
 public func severity(

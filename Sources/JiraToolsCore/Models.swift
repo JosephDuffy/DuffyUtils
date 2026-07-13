@@ -68,12 +68,14 @@ public struct JiraIssueFields: Decodable, Sendable {
     public let summary: String
     public let status: JiraStatus
     public let assignee: JiraUser?
+    public let updated: String?
     public let extraFields: [String: JiraFieldValue]
 
     enum CodingKeys: String, CodingKey {
         case summary
         case status
         case assignee
+        case updated
     }
 
     public init(from decoder: Decoder) throws {
@@ -81,6 +83,7 @@ public struct JiraIssueFields: Decodable, Sendable {
         summary = try container.decode(String.self, forKey: .summary)
         status = try container.decode(JiraStatus.self, forKey: .status)
         assignee = try container.decodeIfPresent(JiraUser.self, forKey: .assignee)
+        updated = try container.decodeIfPresent(String.self, forKey: .updated)
 
         let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
         let extraFieldIDs = decoder.userInfo[.extraFieldIDs] as? [String] ?? []
