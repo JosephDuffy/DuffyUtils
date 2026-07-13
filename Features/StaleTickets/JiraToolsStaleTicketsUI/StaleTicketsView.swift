@@ -5,7 +5,7 @@ public struct StaleTicketsView: View {
     @ObservedObject private var viewModel: StaleTicketsViewModel
     @Environment(\.openURL) private var openURL
     @State private var configurationDraft: StaleTicketsConfigurationDraft
-    @State private var isConfigurationPresented: Bool
+    @SceneStorage("StaleTicketsView.isConfigurationSidebarPresented") private var isConfigurationSidebarPresented: Bool = true
     private let title: String
 
     public init(
@@ -15,10 +15,72 @@ public struct StaleTicketsView: View {
         self.title = title
         self.viewModel = viewModel
         _configurationDraft = State(initialValue: viewModel.configurationDraft)
-        _isConfigurationPresented = State(initialValue: !viewModel.isConfigured)
     }
 
     public var body: some View {
+        Group {
+            if #available(macOS 14, *) {
+                mainContent
+                    .inspector(isPresented: $isConfigurationSidebarPresented) {
+                        configurationSidebar
+                    }
+                    .inspectorColumnWidth(min: 320, ideal: 360)
+            } else {
+                legacyContent
+            }
+        }
+        .navigationTitle(title)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: viewModel.refresh) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(viewModel.isRefreshing || !viewModel.isConfigured)
+
+                Toggle(isOn: $viewModel.isWatching) {
+                    Label("Watch", systemImage: "eye")
+                }
+                .toggleStyle(.button)
+
+                Button(action: toggleConfigurationSidebar) {
+                    Label(
+                        isConfigurationSidebarPresented ? "Hide Configuration" : "Show Configuration",
+                        systemImage: "sidebar.right",
+                    )
+                }
+                .help(isConfigurationSidebarPresented ? "Hide Configuration Sidebar" : "Show Configuration Sidebar")
+            }
+        }
+        .alert(
+            "Refresh Failed",
+            isPresented: Binding(
+                get: { viewModel.refreshError != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.clearRefreshError()
+                    }
+                },
+            ),
+        ) {
+            Button("OK", role: .cancel, action: viewModel.clearRefreshError)
+        } message: {
+            Text(viewModel.refreshError ?? "An unknown error occurred.")
+        }
+    }
+
+    private var legacyContent: some View {
+        HStack(spacing: 0) {
+            mainContent
+
+            if isConfigurationSidebarPresented {
+                Divider()
+                configurationSidebar
+                .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
+            }
+        }
+    }
+
+    private var mainContent: some View {
         Group {
             if let snapshot = viewModel.snapshot {
                 results(snapshot)
@@ -47,47 +109,15 @@ public struct StaleTicketsView: View {
                 }
             }
         }
-        .navigationTitle(title)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button(action: viewModel.refresh) {
-                    Label("Refresh", systemImage: "arrow.clockwise")
-                }
-                .disabled(viewModel.isRefreshing || !viewModel.isConfigured)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 
-                Toggle(isOn: $viewModel.isWatching) {
-                    Label("Watch", systemImage: "eye")
-                }
-                .toggleStyle(.button)
-
-                Button {
-                    presentConfiguration()
-                } label: {
-                    Label("Configure", systemImage: "slider.horizontal.3")
-                }
-            }
-        }
-        .sheet(isPresented: $isConfigurationPresented) {
-            StaleTicketsConfigurationSheet(
-                draft: $configurationDraft,
-                onSave: saveConfiguration,
-            )
-        }
-        .alert(
-            "Refresh Failed",
-            isPresented: Binding(
-                get: { viewModel.refreshError != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.clearRefreshError()
-                    }
-                },
-            ),
-        ) {
-            Button("OK", role: .cancel, action: viewModel.clearRefreshError)
-        } message: {
-            Text(viewModel.refreshError ?? "An unknown error occurred.")
-        }
+    private var configurationSidebar: some View {
+        StaleTicketsConfigurationSidebar(
+            draft: $configurationDraft,
+            onSave: saveConfiguration,
+            onClose: dismissConfiguration,
+        )
     }
 
     @ViewBuilder
@@ -252,7 +282,19 @@ public struct StaleTicketsView: View {
 
     private func presentConfiguration() {
         configurationDraft = viewModel.configurationDraft
-        isConfigurationPresented = true
+        isConfigurationSidebarPresented = true
+    }
+
+    private func dismissConfiguration() {
+        isConfigurationSidebarPresented = false
+    }
+
+    private func toggleConfigurationSidebar() {
+        if isConfigurationSidebarPresented {
+            dismissConfiguration()
+        } else {
+            presentConfiguration()
+        }
     }
 
     private func saveConfiguration() -> Bool {
@@ -260,7 +302,6 @@ public struct StaleTicketsView: View {
             return false
         }
 
-        isConfigurationPresented = false
         return true
     }
 

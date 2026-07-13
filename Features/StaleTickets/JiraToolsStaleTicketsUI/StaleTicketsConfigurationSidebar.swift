@@ -3,13 +3,17 @@ import JiraToolsCore
 import JiraToolsStaleTickets
 import SwiftUI
 
-struct StaleTicketsConfigurationSheet: View {
+struct StaleTicketsConfigurationSidebar: View {
     @Binding var draft: StaleTicketsConfigurationDraft
     let onSave: () -> Bool
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
+            Text("Configure Stale Tickets")
+                .font(.headline)
+                .padding()
+
             Form {
                 Section("Tool") {
                     TextField("Name", text: $draft.displayName)
@@ -72,19 +76,14 @@ struct StaleTicketsConfigurationSheet: View {
 
             HStack {
                 Spacer()
-                Button("Cancel", role: .cancel) {
-                    dismiss()
-                }
-                Button("Save") {
-                    if onSave() {
-                        dismiss()
-                    }
+                Button("Apply") {
+                    _ = onSave()
                 }
                 .keyboardShortcut(.defaultAction)
             }
             .padding()
         }
-        .frame(minWidth: 560, minHeight: 570)
+        .frame(minHeight: 570)
     }
 
     private func highlightedSourceToggle(
