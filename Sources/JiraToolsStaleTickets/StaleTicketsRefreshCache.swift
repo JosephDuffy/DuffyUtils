@@ -2,11 +2,13 @@ import Foundation
 import JiraToolsCore
 
 struct StaleTicketsCommentFacts: Sendable {
+    let comments: [JiraComment]
     let latestTopLevelCommentDate: Date?
     let latestReplyDate: Date?
     let latestTopLevelCommentDateByAuthor: [String: Date]
 
     init(comments: [JiraComment]) {
+        self.comments = comments
         let topLevelComments = comments.filter { !$0.isReply }
         let replies = comments.filter(\.isReply)
         latestTopLevelCommentDate = topLevelComments.compactMap { parseJiraDate($0.created) }.max()

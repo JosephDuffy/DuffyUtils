@@ -55,4 +55,89 @@ struct JiraToolsCoreTests {
 
         #expect(issue.fields.updated == "2026-07-13T09:30:00.000+0000")
     }
+
+    @Test
+    func commentDecodesRichBodyAndPreservesUnknownNodes() throws {
+        let comment = try JSONDecoder().decode(JiraComment.self, from: Data("""
+        {
+          "id": "1",
+          "author": { "accountId": "author" },
+          "created": "2026-07-13T09:30:00.000+0000",
+          "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read the guide",
+                    "marks": [
+                      { "type": "strong" },
+                      { "type": "link", "attrs": { "href": "https://example.com" } }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "futureNode",
+                "attrs": { "metadata": { "source": "future" } },
+                "content": [
+                  { "type": "text", "text": "Still available" }
+                ]
+              }
+            ]
+          }
+        }
+        """.utf8))
+
+        let body = try #require(comment.body)
+        #expect(body.type == "doc")
+        #expect(body.version == 1)
+        #expect(body.content[0].content[0].marks.map(\.type) == ["strong", "link"])
+        #expect(body.content[0].content[0].marks[1].attributes["href"]?.stringValue == "https://example.com")
+        #expect(body.content[1].type == "futureNode")
+        #expect(body.content[1].attributes["metadata"]?.objectValue?["source"]?.stringValue == "future")
+        #expect(body.content[1].content[0].text == "Still available")
+    }
+
+    @Test
+    func commentAllowsMissingAndNullBodies() throws {
+        let comments = try JSONDecoder().decode([JiraComment].self, from: Data("""
+        [
+          {
+            "id": "1",
+            "author": { "accountId": "author" },
+            "created": "2026-07-13T09:30:00.000+0000"
+          },
+          {
+            "id": "2",
+            "author": { "accountId": "author" },
+            "created": "2026-07-13T09:30:00.000+0000",
+            "body": null
+          }
+        ]
+        """.utf8))
+
+        #expect(comments.allSatisfy { $0.body == nil })
+    }
+}
+
+private extension JiraCommentBodyValue {
+    var stringValue: String? {
+        guard case .string(let value) = self else {
+            return nil
+        }
+
+        return value
+    }
+
+    var objectValue: [String: JiraCommentBodyValue]? {
+        guard case .object(let value) = self else {
+            return nil
+        }
+
+        return value
+    }
 }

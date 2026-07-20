@@ -5,7 +5,9 @@ public struct StaleTicketsView: View {
     @ObservedObject private var viewModel: StaleTicketsViewModel
     @ObservedObject private var configurationViewModel: StaleTicketsConfigurationViewModel
     @Environment(\.openURL) private var openURL
-    @SceneStorage("StaleTicketsView.isConfigurationSidebarPresented") private var isConfigurationSidebarPresented: Bool = true
+    @SceneStorage("StaleTicketsView.isTicketDetailsPresented") private var isTicketDetailsPresented: Bool = true
+    @State private var isConfigurationPresented = false
+    @State private var selectedTicketKey: String?
     private let title: String
 
     public init(
@@ -21,15 +23,38 @@ public struct StaleTicketsView: View {
         Group {
             if #available(macOS 14, *) {
                 mainContent
-                    .inspector(isPresented: $isConfigurationSidebarPresented) {
-                        configurationSidebar
+                    .inspector(isPresented: $isTicketDetailsPresented) {
+                        ticketInspector
                     }
-                    .inspectorColumnWidth(min: 320, ideal: 360)
             } else {
                 legacyContent
             }
         }
         .navigationTitle(title)
+        .sheet(
+            isPresented: $isConfigurationPresented,
+            onDismiss: configurationViewModel.resetDraft,
+        ) {
+            StaleTicketsConfigurationSheet(
+                draft: $configurationViewModel.draft,
+                onSave: saveConfiguration,
+            )
+        }
+        .task {
+            guard !configurationViewModel.isConfigured else {
+                return
+            }
+
+            presentConfiguration()
+        }
+        .onReceive(viewModel.$snapshot) { snapshot in
+            guard let snapshot,
+                  case .complete = snapshot.status else {
+                return
+            }
+
+            clearSelectionIfNeeded()
+        }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button(action: viewModel.refresh) {
@@ -42,13 +67,22 @@ public struct StaleTicketsView: View {
                 }
                 .toggleStyle(.button)
 
-                Button(action: toggleConfigurationSidebar) {
+                Button(action: presentConfiguration) {
+                    Label("Configure", systemImage: "slider.horizontal.3")
+                }
+            }
+
+            if #available(macOS 26, *) {
+                ToolbarSpacer(.flexible, placement: .primaryAction)
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(action: toggleTicketDetails) {
                     Label(
-                        isConfigurationSidebarPresented ? "Hide Configuration" : "Show Configuration",
+                        isTicketDetailsPresented ? "Hide Ticket Details" : "Show Ticket Details",
                         systemImage: "sidebar.right",
                     )
                 }
-                .help(isConfigurationSidebarPresented ? "Hide Configuration Sidebar" : "Show Configuration Sidebar")
             }
         }
         .alert(
@@ -72,9 +106,9 @@ public struct StaleTicketsView: View {
         HStack(spacing: 0) {
             mainContent
 
-            if isConfigurationSidebarPresented {
+            if isTicketDetailsPresented {
                 Divider()
-                configurationSidebar
+                ticketInspector
                 .frame(minWidth: 320, idealWidth: 360, maxWidth: 420)
             }
         }
@@ -112,11 +146,11 @@ public struct StaleTicketsView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private var configurationSidebar: some View {
-        StaleTicketsConfigurationSidebar(
-            draft: $configurationViewModel.draft,
-            onSave: saveConfiguration,
-            onClose: dismissConfiguration,
+    private var ticketInspector: some View {
+        StaleTicketsTicketInspector(
+            row: selectedTicketRow,
+            extraFields: viewModel.snapshot?.extraFields ?? [],
+            issueURL: selectedTicketRow.map(viewModel.issueURL(for:)),
         )
     }
 
@@ -175,7 +209,11 @@ public struct StaleTicketsView: View {
 
     @available(macOS 14.4, *)
     private func dynamicTicketsTable(_ snapshot: StaleTicketsSnapshot) -> some View {
-        Table(viewModel.rows, sortOrder: $viewModel.sortOrder) {
+        Table(
+            viewModel.rows,
+            selection: $selectedTicketKey,
+            sortOrder: $viewModel.sortOrder,
+        ) {
             standardColumns()
             TableColumnForEach(snapshot.extraFields, id: \.id) { field in
                 TableColumn(field.name, sortUsing: StaleTicketsTableComparator(column: .extraField(field.id))) { row in
@@ -189,7 +227,11 @@ public struct StaleTicketsView: View {
     }
 
     private func fallbackTicketsTable() -> some View {
-        Table(viewModel.rows, sortOrder: $viewModel.sortOrder) {
+        Table(
+            viewModel.rows,
+            selection: $selectedTicketKey,
+            sortOrder: $viewModel.sortOrder,
+        ) {
             standardColumns()
             TableColumn("Extra Fields", sortUsing: StaleTicketsTableComparator(column: .extraFields)) { row in
                 Text(row.extraFieldsDisplay.isEmpty ? "—" : row.extraFieldsDisplay)
@@ -286,19 +328,28 @@ public struct StaleTicketsView: View {
 
     private func presentConfiguration() {
         configurationViewModel.resetDraft()
-        isConfigurationSidebarPresented = true
+        isConfigurationPresented = true
     }
 
-    private func dismissConfiguration() {
-        isConfigurationSidebarPresented = false
+    private func toggleTicketDetails() {
+        isTicketDetailsPresented.toggle()
     }
 
-    private func toggleConfigurationSidebar() {
-        if isConfigurationSidebarPresented {
-            dismissConfiguration()
-        } else {
-            presentConfiguration()
+    private func clearSelectionIfNeeded() {
+        guard let selectedTicketKey,
+              !viewModel.rows.contains(where: { $0.id == selectedTicketKey }) else {
+            return
         }
+
+        self.selectedTicketKey = nil
+    }
+
+    private var selectedTicketRow: StaleTicketsTableRow? {
+        guard let selectedTicketKey else {
+            return nil
+        }
+
+        return viewModel.rows.first { $0.id == selectedTicketKey }
     }
 
     private func saveConfiguration() -> Bool {

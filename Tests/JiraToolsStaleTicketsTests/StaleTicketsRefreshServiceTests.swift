@@ -83,7 +83,17 @@ struct StaleTicketsRefreshServiceTests {
           {
             "id": "1",
             "author": { "accountId": "assignee" },
-            "created": "2026-07-12T09:30:00.000+0000"
+            "created": "2026-07-12T09:30:00.000+0000",
+            "body": {
+              "type": "doc",
+              "version": 1,
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [{ "type": "text", "text": "Cached body" }]
+                }
+              ]
+            }
           },
           {
             "id": "2",
@@ -106,6 +116,8 @@ struct StaleTicketsRefreshServiceTests {
         #expect(cachedFacts?.latestTopLevelCommentDate == parseJiraDate("2026-07-12T09:30:00.000+0000"))
         #expect(cachedFacts?.latestReplyDate == parseJiraDate("2026-07-13T09:30:00.000+0000"))
         #expect(cachedFacts?.latestTopLevelCommentDateByAuthor["assignee"] == parseJiraDate("2026-07-12T09:30:00.000+0000"))
+        #expect(cachedFacts?.comments.map(\.id) == ["1", "2"])
+        #expect(cachedFacts?.comments.first?.body?.content.first?.content.first?.text == "Cached body")
         #expect(invalidatedFacts == nil)
 
         await cache.pruneCommentFacts(for: [], baseURL: baseURL)

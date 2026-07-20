@@ -131,6 +131,7 @@ public struct JiraComment: Decodable, Sendable {
     public let created: String
     public let updated: String?
     public let parentId: String?
+    public let body: JiraCommentBody?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -141,6 +142,7 @@ public struct JiraComment: Decodable, Sendable {
         case parentID
         case parent
         case parentCommentId
+        case body
     }
 
     public init(from decoder: Decoder) throws {
@@ -149,6 +151,7 @@ public struct JiraComment: Decodable, Sendable {
         author = try container.decode(JiraUser.self, forKey: .author)
         created = try container.decode(String.self, forKey: .created)
         updated = try container.decodeIfPresent(String.self, forKey: .updated)
+        body = try? container.decodeIfPresent(JiraCommentBody.self, forKey: .body)
 
         if let parentId = try decodeStringOrNumberIfPresent(container, forKey: .parentId) {
             self.parentId = parentId
@@ -165,6 +168,118 @@ public struct JiraComment: Decodable, Sendable {
 
     public var isReply: Bool {
         parentId != nil
+    }
+}
+
+public struct JiraCommentBody: Decodable, Sendable {
+    public let type: String
+    public let version: Int?
+    public let content: [JiraCommentBodyNode]
+    public let attributes: [String: JiraCommentBodyValue]
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case version
+        case content
+        case attributes = "attrs"
+    }
+
+    public init(from decoder: Decoder) throws {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self) else {
+            type = "unknown"
+            version = nil
+            content = []
+            attributes = [:]
+            return
+        }
+
+        type = (try? container.decode(String.self, forKey: .type)) ?? "unknown"
+        version = try? container.decodeIfPresent(Int.self, forKey: .version)
+        content = (try? container.decode([JiraCommentBodyNode].self, forKey: .content)) ?? []
+        attributes = (try? container.decode([String: JiraCommentBodyValue].self, forKey: .attributes)) ?? [:]
+    }
+}
+
+public struct JiraCommentBodyNode: Decodable, Sendable {
+    public let type: String
+    public let text: String?
+    public let attributes: [String: JiraCommentBodyValue]
+    public let marks: [JiraCommentBodyMark]
+    public let content: [JiraCommentBodyNode]
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case text
+        case attributes = "attrs"
+        case marks
+        case content
+    }
+
+    public init(from decoder: Decoder) throws {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self) else {
+            type = "unknown"
+            text = nil
+            attributes = [:]
+            marks = []
+            content = []
+            return
+        }
+
+        type = (try? container.decode(String.self, forKey: .type)) ?? "unknown"
+        text = try? container.decodeIfPresent(String.self, forKey: .text)
+        attributes = (try? container.decode([String: JiraCommentBodyValue].self, forKey: .attributes)) ?? [:]
+        marks = (try? container.decode([JiraCommentBodyMark].self, forKey: .marks)) ?? []
+        content = (try? container.decode([JiraCommentBodyNode].self, forKey: .content)) ?? []
+    }
+}
+
+public struct JiraCommentBodyMark: Decodable, Sendable {
+    public let type: String
+    public let attributes: [String: JiraCommentBodyValue]
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case attributes = "attrs"
+    }
+
+    public init(from decoder: Decoder) throws {
+        guard let container = try? decoder.container(keyedBy: CodingKeys.self) else {
+            type = "unknown"
+            attributes = [:]
+            return
+        }
+
+        type = (try? container.decode(String.self, forKey: .type)) ?? "unknown"
+        attributes = (try? container.decode([String: JiraCommentBodyValue].self, forKey: .attributes)) ?? [:]
+    }
+}
+
+public indirect enum JiraCommentBodyValue: Decodable, Sendable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case null
+    case array([JiraCommentBodyValue])
+    case object([String: JiraCommentBodyValue])
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+
+        if container.decodeNil() {
+            self = .null
+        } else if let string = try? container.decode(String.self) {
+            self = .string(string)
+        } else if let array = try? container.decode([JiraCommentBodyValue].self) {
+            self = .array(array)
+        } else if let object = try? container.decode([String: JiraCommentBodyValue].self) {
+            self = .object(object)
+        } else if let number = try? container.decode(Double.self) {
+            self = .number(number)
+        } else if let bool = try? container.decode(Bool.self) {
+            self = .bool(bool)
+        } else {
+            self = .null
+        }
     }
 }
 

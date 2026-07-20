@@ -77,6 +77,7 @@ public enum StaleTicketsRefreshStatus: Sendable {
 
 public struct StaleTicketsReport: Sendable {
     public let issue: JiraIssue
+    public let comments: [JiraComment]
     public let latestCommentDate: Date?
     public let latestReplyDate: Date?
     public let latestCurrentUserCommentDate: Date?
@@ -344,6 +345,7 @@ public struct StaleTicketsRefreshService: Sendable {
     private func loadingReport(for issue: JiraIssue) -> StaleTicketsReport {
         StaleTicketsReport(
             issue: issue,
+            comments: [],
             latestCommentDate: nil,
             latestReplyDate: nil,
             latestCurrentUserCommentDate: nil,
@@ -417,6 +419,7 @@ public struct StaleTicketsRefreshService: Sendable {
 
         return StaleTicketsReport(
             issue: issue,
+            comments: commentFacts?.comments ?? [],
             latestCommentDate: latestTopLevelCommentDate,
             latestReplyDate: latestReplyDate,
             latestCurrentUserCommentDate: latestCurrentUserCommentDate,
