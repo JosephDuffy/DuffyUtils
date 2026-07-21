@@ -1,5 +1,40 @@
 # Jira Tools
 
+Jira Tools is a macOS 13+ SwiftUI app for monitoring and acting on Jira data. Its first feature,
+Stale Tickets, identifies tickets that need attention and can refresh automatically while the app
+is running.
+
+## Project Structure
+
+- `Foundation/JiraToolsFoundation`: Shared models and app infrastructure.
+- `Foundation/JiraToolsUI`: Shared application UI.
+- `Services/JiraAPI`: Jira authentication, API access, and response models.
+- `Features/StaleTickets`: Stale Tickets business logic and UI.
+- `Root`, `Credentials`, and `Resources`: App composition, app-owned flows, and resources.
+
+All package dependencies use paths relative to this directory, so the project can be built without
+any parent repository.
+
+## Development
+
+Build the app without signing:
+
+```bash
+xcodebuild \
+    -project JiraTools.xcodeproj \
+    -scheme JiraToolsApp \
+    CODE_SIGNING_ALLOWED=NO \
+    build
+```
+
+Run the package tests:
+
+```bash
+swift test --package-path Foundation/JiraToolsFoundation
+swift test --package-path Services/JiraAPI
+swift test --package-path Features/StaleTickets
+```
+
 ## Roadmap
 
 - [ ] Change to rules-based tools

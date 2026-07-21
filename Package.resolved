@@ -1,5 +1,5 @@
 {
-  "originHash" : "a6031dd59c233c5c983b133ae601b3d2d02c64b025872b852080971bd63b47b1",
+  "originHash" : "bd72d672a303bbfb736a27a8da8bbe0f322d8e19cc824d2d158787a075e9209c",
   "pins" : [
     {
       "identity" : "swift-argument-parser",
@@ -35,15 +35,6 @@
       "state" : {
         "revision" : "395a77f0aa927f0ff73941d7ac35f2b46d47c9db",
         "version" : "1.6.3"
-      }
-    },
-    {
-      "identity" : "usecasemacro",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/JosephDuffy/UseCaseMacro.git",
-      "state" : {
-        "branch" : "main",
-        "revision" : "2ea6d82575671c5cc2884a7947349e816ebd6cc7"
       }
     }
   ],

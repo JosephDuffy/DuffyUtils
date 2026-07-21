@@ -7,42 +7,52 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		A10000000000000000000010 /* JiraToolsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* JiraToolsApp.swift */; };
-		A10000000000000000000033 /* JiraToolsAppFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000030 /* JiraToolsAppFoundation */; };
-		A10000000000000000000034 /* JiraToolsStaleTicketsUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000031 /* JiraToolsStaleTicketsUI */; };
-		A10000000000000000000035 /* JiraToolsAppUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000032 /* JiraToolsAppUI */; };
-		A10000000000000000000040 /* JiraToolsAppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000036 /* JiraToolsAppCoordinator.swift */; };
-		A10000000000000000000041 /* JiraToolsRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000037 /* JiraToolsRootView.swift */; };
-		A10000000000000000000042 /* JiraCredentialsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000039 /* JiraCredentialsView.swift */; };
-		A10000000000000000000043 /* JiraToolInstance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000045 /* JiraToolInstance.swift */; };
-		A10000000000000000000044 /* NewToolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000046 /* NewToolView.swift */; };
-		C0DEC0DE0000000000000001 /* JiraToolsWindowUIState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */; };
-		D93A36943001434B00ED4B8C /* JiraToolsCore in Frameworks */ = {isa = PBXBuildFile; productRef = D93A36933001434B00ED4B8C /* JiraToolsCore */; };
-		F5A17EC3D8B8423CA4B2DE01 /* JiraTools.icon in Resources */ = {isa = PBXBuildFile; fileRef = F5A17EC3D8B8423CA4B2DE02 /* JiraTools.icon */; };
+		D90ED306300EFF8F00086989 /* JiraToolsFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000100 /* JiraToolsFoundation */; };
+		D90ED307300EFF8F00086989 /* JiraToolsUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000101 /* JiraToolsUI */; };
+		D90ED308300EFF8F00086989 /* JiraToolsStaleTickets in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000102 /* JiraToolsStaleTickets */; };
+		D90ED309300EFF8F00086989 /* JiraToolsStaleTicketsUI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000103 /* JiraToolsStaleTicketsUI */; };
+		D90ED30A300EFF8F00086989 /* JiraAPI in Frameworks */ = {isa = PBXBuildFile; productRef = A10000000000000000000104 /* JiraAPI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000001 /* Jira Tools.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Jira Tools.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A10000000000000000000011 /* JiraToolsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolsApp.swift; sourceTree = "<group>"; };
-		A10000000000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A10000000000000000000036 /* JiraToolsAppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolsAppCoordinator.swift; sourceTree = "<group>"; };
-		A10000000000000000000037 /* JiraToolsRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolsRootView.swift; sourceTree = "<group>"; };
-		A10000000000000000000039 /* JiraCredentialsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraCredentialsView.swift; sourceTree = "<group>"; };
-		A10000000000000000000045 /* JiraToolInstance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolInstance.swift; sourceTree = "<group>"; };
-		A10000000000000000000046 /* NewToolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewToolView.swift; sourceTree = "<group>"; };
-		C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JiraToolsWindowUIState.swift; sourceTree = "<group>"; };
-		F5A17EC3D8B8423CA4B2DE02 /* JiraTools.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = JiraTools.icon; sourceTree = "<group>"; };
+		D9172D7A300EF75300D2E86A /* SwiftRefactorExtension.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = SwiftRefactorExtension.xcodeproj; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D917FCD8300EF71700D2E86A /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Credentials/JiraCredentialsView.swift,
+				Resources/JiraTools.icon,
+				Root/JiraToolInstance.swift,
+				Root/JiraToolsApp.swift,
+				Root/JiraToolsAppCoordinator.swift,
+				Root/JiraToolsRootView.swift,
+				Root/JiraToolsWindowUIState.swift,
+				Root/NewToolView.swift,
+			);
+			target = A1000000000000000000000F /* JiraToolsApp */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		D9170A68300EF73100D2E86A /* Foundation */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Foundation; sourceTree = "<group>"; };
+		D91717F1300EF74400D2E86A /* Services */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Services; sourceTree = "<group>"; };
+		D917311C300EF75300D2E86A /* Features */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Features; sourceTree = "<group>"; };
+		D917FCC3300EF70F00D2E86A /* Jira Tools */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (D917FCD8300EF71700D2E86A /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = "Jira Tools"; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10000000000000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D93A36943001434B00ED4B8C /* JiraToolsCore in Frameworks */,
-				A10000000000000000000033 /* JiraToolsAppFoundation in Frameworks */,
-				A10000000000000000000034 /* JiraToolsStaleTicketsUI in Frameworks */,
-				A10000000000000000000035 /* JiraToolsAppUI in Frameworks */,
+				D90ED30A300EFF8F00086989 /* JiraAPI in Frameworks */,
+				D90ED309300EFF8F00086989 /* JiraToolsStaleTicketsUI in Frameworks */,
+				D90ED308300EFF8F00086989 /* JiraToolsStaleTickets in Frameworks */,
+				D90ED307300EFF8F00086989 /* JiraToolsUI in Frameworks */,
+				D90ED306300EFF8F00086989 /* JiraToolsFoundation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -52,9 +62,10 @@
 		A10000000000000000000003 = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000007 /* Root */,
-				A10000000000000000000038 /* Credentials */,
-				A10000000000000000000008 /* Resources */,
+				D917FCC3300EF70F00D2E86A /* Jira Tools */,
+				D917311C300EF75300D2E86A /* Features */,
+				D91717F1300EF74400D2E86A /* Services */,
+				D9170A68300EF73100D2E86A /* Foundation */,
 				A10000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -67,34 +78,11 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A10000000000000000000007 /* Root */ = {
+		D917311D300EF75300D2E86A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000011 /* JiraToolsApp.swift */,
-				A10000000000000000000036 /* JiraToolsAppCoordinator.swift */,
-				A10000000000000000000037 /* JiraToolsRootView.swift */,
-				A10000000000000000000045 /* JiraToolInstance.swift */,
-				A10000000000000000000046 /* NewToolView.swift */,
-				C0DEC0DE0000000000000002 /* JiraToolsWindowUIState.swift */,
 			);
-			path = Root;
-			sourceTree = "<group>";
-		};
-		A10000000000000000000008 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				A10000000000000000000014 /* Info.plist */,
-				F5A17EC3D8B8423CA4B2DE02 /* JiraTools.icon */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		A10000000000000000000038 /* Credentials */ = {
-			isa = PBXGroup;
-			children = (
-				A10000000000000000000039 /* JiraCredentialsView.swift */,
-			);
-			path = Credentials;
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -114,10 +102,11 @@
 			);
 			name = JiraToolsApp;
 			packageProductDependencies = (
-				D93A36933001434B00ED4B8C /* JiraToolsCore */,
-				A10000000000000000000030 /* JiraToolsAppFoundation */,
-				A10000000000000000000031 /* JiraToolsStaleTicketsUI */,
-				A10000000000000000000032 /* JiraToolsAppUI */,
+				A10000000000000000000100 /* JiraToolsFoundation */,
+				A10000000000000000000101 /* JiraToolsUI */,
+				A10000000000000000000102 /* JiraToolsStaleTickets */,
+				A10000000000000000000103 /* JiraToolsStaleTicketsUI */,
+				A10000000000000000000104 /* JiraAPI */,
 			);
 			productName = "Jira Tools";
 			productReference = A10000000000000000000001 /* Jira Tools.app */;
@@ -149,10 +138,15 @@
 			mainGroup = A10000000000000000000003;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				D93A36923001434B00ED4B8C /* XCLocalSwiftPackageReference "../.." */,
 			);
 			productRefGroup = A10000000000000000000005 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = D917311D300EF75300D2E86A /* Products */;
+					ProjectRef = D9172D7A300EF75300D2E86A /* SwiftRefactorExtension.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				A1000000000000000000000F /* JiraToolsApp */,
@@ -165,7 +159,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F5A17EC3D8B8423CA4B2DE01 /* JiraTools.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -176,13 +169,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10000000000000000000010 /* JiraToolsApp.swift in Sources */,
-				A10000000000000000000040 /* JiraToolsAppCoordinator.swift in Sources */,
-				A10000000000000000000041 /* JiraToolsRootView.swift in Sources */,
-				A10000000000000000000042 /* JiraCredentialsView.swift in Sources */,
-				A10000000000000000000043 /* JiraToolInstance.swift in Sources */,
-				A10000000000000000000044 /* NewToolView.swift in Sources */,
-				C0DEC0DE0000000000000001 /* JiraToolsWindowUIState.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -305,7 +291,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_FILE = "Jira Tools/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Jira Tools";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
@@ -347,7 +333,7 @@
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Resources/Info.plist;
+				INFOPLIST_FILE = "Jira Tools/Resources/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Jira Tools";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
@@ -389,29 +375,26 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		D93A36923001434B00ED4B8C /* XCLocalSwiftPackageReference "../.." */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../..;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		A10000000000000000000030 /* JiraToolsAppFoundation */ = {
+		A10000000000000000000100 /* JiraToolsFoundation */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = JiraToolsAppFoundation;
+			productName = JiraToolsFoundation;
 		};
-		A10000000000000000000031 /* JiraToolsStaleTicketsUI */ = {
+		A10000000000000000000101 /* JiraToolsUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JiraToolsUI;
+		};
+		A10000000000000000000102 /* JiraToolsStaleTickets */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = JiraToolsStaleTickets;
+		};
+		A10000000000000000000103 /* JiraToolsStaleTicketsUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = JiraToolsStaleTicketsUI;
 		};
-		A10000000000000000000032 /* JiraToolsAppUI */ = {
+		A10000000000000000000104 /* JiraAPI */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = JiraToolsAppUI;
-		};
-		D93A36933001434B00ED4B8C /* JiraToolsCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = JiraToolsCore;
+			productName = JiraAPI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -115,10 +115,8 @@ The signing identity must be a `Developer ID Application` certificate; `Apple De
 ## `Jira Tools.app`
 
 `Jira Tools.app` is a macOS 13+ SwiftUI app with a scalable tools sidebar. Its first feature is
-**Stale Tickets**, which shares its Jira client and stale-ticket refresh pipeline with the
-`jira-tools stale-tickets` command. The app stores its Jira API token in Keychain and keeps
-filter, threshold, column, and watch preferences app-owned; it does not read CLI environment
-variables or Git configuration.
+**Stale Tickets**. The app stores its Jira API token in Keychain and keeps filter, threshold,
+column, and watch preferences app-owned.
 
 Choose **Jira Credentials…** from the Window menu to save or test the active Jira account. The
 Stale Tickets toolbar provides Refresh, Watch, and Configure controls. Watch is opt-in, runs while
